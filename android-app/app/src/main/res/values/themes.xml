@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ClipBridge" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowBackground">@color/ground</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@color/ground</item>
+        <item name="android:navigationBarColor">@color/ground</item>
+        <item name="android:windowLightStatusBar">@bool/light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_bars</item>
+        <item name="android:fontFamily">@font/onest</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+        <item name="android:textColorSecondary">@color/ink2</item>
+        <item name="android:textColorHint">@color/ink2</item>
+        <item name="android:colorAccent">@color/cobalt</item>
+        <item name="android:colorControlActivated">@color/cobalt</item>
+    </style>
+
+    <style name="Theme.ClipBridge.Transparent" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- Base styles: "T.x" and "Btn.x" inherit from these by name. -->
+    <style name="T" />
+    <style name="Btn" />
+
+    <!-- Text styles from the design -->
+    <style name="T.Display"><item name="android:textSize">34sp</item><item name="android:textFontWeight">700</item><item name="android:letterSpacing">-0.03</item><item name="android:textColor">@color/ink</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Title"><item name="android:textSize">22sp</item><item name="android:textFontWeight">700</item><item name="android:letterSpacing">-0.02</item><item name="android:textColor">@color/ink</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Section"><item name="android:textSize">17sp</item><item name="android:textFontWeight">600</item><item name="android:textColor">@color/ink</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Group"><item name="android:textSize">14sp</item><item name="android:textFontWeight">600</item><item name="android:textColor">@color/ink2</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Body"><item name="android:textSize">16sp</item><item name="android:lineSpacingMultiplier">1.2</item><item name="android:textColor">@color/ink2</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Row"><item name="android:textSize">16sp</item><item name="android:textFontWeight">500</item><item name="android:textColor">@color/ink</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Meta"><item name="android:textSize">13sp</item><item name="android:textColor">@color/ink2</item><item name="android:fontFamily">@font/onest</item></style>
+    <style name="T.Code"><item name="android:textSize">18sp</item><item name="android:textFontWeight">600</item><item name="android:letterSpacing">0.04</item><item name="android:fontFeatureSettings">tnum</item><item name="android:textColor">@color/cobalt</item><item name="android:fontFamily">@font/onest</item></style>
+
+    <style name="Btn.Primary">
+        <item name="android:layout_height">58dp</item>
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="android:textColor">@color/on_cobalt</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:textFontWeight">600</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@font/onest</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:drawableTint">@color/on_cobalt</item>
+        <item name="android:drawablePadding">10dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+    </style>
+    <style name="Btn.Dark" parent="Btn.Primary">
+        <item name="android:background">@drawable/bg_btn_dark</item>
+        <item name="android:textColor">@color/ground</item>
+        <item name="android:drawableTint">@color/ground</item>
+    </style>
+    <style name="Btn.Quiet" parent="Btn.Primary">
+        <item name="android:background">@drawable/bg_btn_quiet</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+    <style name="IconBtn">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">@drawable/bg_icon_btn</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:tint">@color/ink</item>
+    </style>
+    <style name="Input">
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">54dp</item>
+        <item name="android:background">@drawable/bg_input</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:fontFamily">@font/onest</item>
+        <item name="android:inputType">textPassword</item>
+        <item name="android:importantForAutofill">no</item>
+    </style>
+</resources>
