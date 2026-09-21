@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClipBridge</string>
+    <string name="share_label">Send with ClipBridge</string>
+    <string name="tile_label">Send clipboard</string>
+</resources>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ClipBridge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>ClipBridge</h1>
+    <div id="headerTools" class="tools" hidden>
+      <label for="autoSend" class="small">Auto-send</label>
+      <button id="autoSend" class="switch" role="switch" aria-checked="true"><span></span></button>
+      <button id="openSettings" class="icon" aria-label="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sign in -->
+  <section id="viewSignIn" hidden>
+    <div class="bridge big" aria-hidden="true"><span class="dev phone"></span><span class="link"><i></i></span><span class="dev laptop"></span></div>
+    <h2 class="display">Copy here.<br>Paste there.</h2>
+    <p class="body">Your phone and Chrome share one clipboard through your own Google Drive, encrypted before anything leaves the device.</p>
+    <button id="signIn" class="primary dark">Sign in with Google</button>
+    <p id="authError" class="error" role="alert"></p>
+  </section>
+
+  <!-- Passphrase -->
+  <section id="viewPass" hidden>
+    <h2 class="title">Set your passphrase</h2>
+    <p class="body">Use the same one as on your phone. It locks every clip, and it never leaves your devices.</p>
+    <label for="pass1" class="label">Passphrase</label>
+    <input id="pass1" type="password" autocomplete="new-password">
+    <label for="pass2" class="label">Type it again</label>
+    <input id="pass2" type="password" autocomplete="new-password">
+    <p id="passHint" class="small">At least 10 characters. A few random words work well.</p>
+    <div id="warn" class="warn" hidden>
+      <strong>This doesn't match your other device</strong>
+      <p>Clips already in Drive were locked with a different passphrase. Check for a typo, or use this one on both devices.</p>
+      <button id="useAnyway" class="quiet">Use this passphrase anyway</button>
+    </div>
+    <div id="checkCard" class="card row" hidden>
+      <div><strong>Key check</strong><br><span class="small">Your phone should show the same code.</span></div>
+      <span id="checkCode" class="code"></span>
+    </div>
+    <p id="passStatus" class="small center" aria-live="polite"></p>
+    <button id="savePass" class="primary">Save passphrase</button>
+    <button id="cancelPass" class="link" hidden>Cancel</button>
+  </section>
+
+  <!-- Main -->
+  <section id="viewMain" hidden>
+    <div class="card status">
+      <span id="dot" class="dot"></span>
+      <div class="grow"><strong id="statusText">Syncing with your phone</strong><br><span id="email" class="small"></span></div>
+      <span class="small lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span id="statusCode"></span></span>
+    </div>
+    <div class="card composer">
+      <label for="text" class="sr">Text to send</label>
+      <textarea id="text" rows="2" placeholder="Type or paste. Ctrl+V pastes images too."></textarea>
+      <div class="row gap">
+        <button id="send" class="primary small-btn grow">Send to phone</button>
+        <label class="quiet small-btn" tabindex="0" id="filesLabel">Files<input id="files" type="file" multiple hidden></label>
+      </div>
+      <p id="msg" class="small" role="status" aria-live="polite"></p>
+    </div>
+    <div class="row between"><h2 class="section">Recent</h2><span class="small">Last 10 kept</span></div>
+    <ul id="list"></ul>
+  </section>
+
+  <!-- Settings -->
+  <section id="viewSettings" hidden>
+    <button id="closeSettings" class="link back">Back</button>
+    <h3 class="group">Encryption</h3>
+    <div class="card list">
+      <div class="item"><span>Key check</span><span id="setCode" class="code"></span></div>
+      <button id="changePass" class="item">Change passphrase</button>
+    </div>
+    <h3 class="group">Clips</h3>
+    <div class="card list"><button id="deleteAll" class="item danger">Delete all clips</button></div>
+    <h3 class="group">Account</h3>
+    <div class="card list">
+      <div class="item"><span id="setEmail"></span></div>
+      <button id="signOut" class="item danger">Sign out</button>
+    </div>
+    <p class="small">Signing out also forgets the passphrase on this computer.</p>
+  </section>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

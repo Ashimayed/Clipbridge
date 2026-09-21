@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/ground">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:id="@+id/column" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" android:orientation="vertical"
+            android:paddingStart="16dp" android:paddingTop="14dp" android:paddingEnd="16dp" android:paddingBottom="28dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="-8dp" android:gravity="center_vertical">
+                <ImageButton android:id="@+id/btnBack" style="@style/IconBtn" android:contentDescription="Back" android:src="@drawable/ic_back" />
+                <TextView style="@style/T.Title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Settings" />
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Encryption" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowKey" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowKeyTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Key check" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowKeySub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Must match the code in Chrome" android:visibility="visible" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/rowKeyValue" style="@style/T.Code" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/line" />
+                <LinearLayout android:id="@+id/rowChangePass" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowChangePassTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Change passphrase" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowChangePassSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" android:visibility="gone" />
+                    </LinearLayout>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Sync" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowReceive" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowReceiveTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Receive from Chrome" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowReceiveSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="New clips land on this phone" android:visibility="visible" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/rowReceiveSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="Receive from Chrome" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/line" />
+                <LinearLayout android:id="@+id/rowBattery" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowBatteryTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Run in background" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowBatterySub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" android:visibility="visible" />
+                    </LinearLayout>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/line" />
+                <LinearLayout android:id="@+id/rowTile" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowTileTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Quick Settings tile" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowTileSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Send with one tap from the shade" android:visibility="visible" />
+                    </LinearLayout>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Clips" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowDeleteAll" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowDeleteAllTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Delete all clips" android:textColor="@color/danger" />
+                        <TextView android:id="@+id/rowDeleteAllSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Removes them from your Drive now" android:visibility="visible" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Account" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowEmail" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowEmailTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowEmailSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Google account" android:visibility="visible" />
+                    </LinearLayout>
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/line" />
+                <LinearLayout android:id="@+id/rowSignOut" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowSignOutTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sign out" android:textColor="@color/danger" />
+                        <TextView android:id="@+id/rowSignOutSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Also forgets the passphrase on this phone" android:visibility="visible" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</ScrollView>

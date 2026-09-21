@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ground">#EDF0F4</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="ink">#111521</color>
+    <color name="ink2">#4A5261</color>
+    <color name="line">#D9DEE7</color>
+    <color name="cobalt">#2743C7</color>
+    <color name="on_cobalt">#FFFFFF</color>
+    <color name="tint">#E4E9FB</color>
+    <color name="live">#177A52</color>
+    <color name="danger">#A8261B</color>
+    <color name="brand">#2743C7</color>
+    <color name="pressed">#1A111521</color>
+</resources>
