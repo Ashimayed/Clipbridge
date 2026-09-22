@@ -24,6 +24,7 @@ data class DriveClip(
     val createdTime: String,
     val origin: String,       // random device id (not personal data)
     val description: String?, // encrypted header
+    val pinned: Boolean = false, // visible in plain appProperties: a bit, never the clip's content
 )
 
 /** 401: token expired or revoked. */
@@ -54,14 +55,33 @@ class DriveApi {
         val arr = JSONObject(body).optJSONArray("files") ?: return emptyList()
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
+            val props = o.optJSONObject("appProperties")
             DriveClip(
                 id = o.getString("id"),
                 size = o.optString("size", "0").toLongOrNull() ?: 0L,
                 createdTime = o.optString("createdTime", ""),
-                origin = o.optJSONObject("appProperties")?.optString("origin", "") ?: "",
+                origin = props?.optString("origin", "") ?: "",
                 description = o.optString("description", "").ifBlank { null },
+                pinned = props?.optString("pinned", "") == "1",
             )
         }
+    }
+
+    /**
+     * Marks a clip pinned or not. A lightweight metadata PATCH: no re-upload of the (possibly
+     * large, encrypted) content. The pin flag is visible in Drive as plain metadata — like the
+     * clip's size and timestamp already are — but it never reveals the clip's actual content.
+     */
+    fun setPinned(token: String, id: String, pinned: Boolean) {
+        val body = JSONObject().put(
+            "appProperties",
+            JSONObject().apply { if (pinned) put("pinned", "1") else put("pinned", JSONObject.NULL) }
+        )
+        val req = Request.Builder().url("$BASE/files/$id?fields=id")
+            .header(AUTH, "Bearer $token")
+            .patch(body.toString().toRequestBody(JSON))
+            .build()
+        execute(http, req) { }
     }
 
     fun email(token: String): String? {
@@ -123,9 +143,10 @@ class DriveApi {
         }
     }
 
-    /** Keep only the newest [keep] clips so Drive never fills up. */
+    /** Keep only the newest [keep] UNPINNED clips so Drive never fills up. Pinned clips are never dropped here. */
     fun prune(token: String, keep: Int = MAX_CLIPS) {
-        list(token, pageSize = 100).drop(keep).forEach { runCatching { delete(token, it.id) } }
+        val items = list(token, pageSize = 100).map { PruneItem(it.id, it.createdTime, it.pinned) }
+        PrunePlan.idsToDelete(items, keep).forEach { id -> runCatching { delete(token, id) } }
     }
 
     fun deleteAll(token: String) {

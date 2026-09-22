@@ -8,6 +8,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,7 +35,24 @@ class SetupActivity : ComponentActivity() {
     private lateinit var warnCard: View
     private lateinit var keyCheckCard: View
     private lateinit var keyCheckCode: TextView
+    private lateinit var btnScanQr: Button
     private var pendingKey: ByteArray? = null
+
+    private val scanLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        if (res.resultCode != RESULT_OK) return@registerForActivityResult
+        when (val r = Pairing.parse(res.data?.getStringExtra(ScanActivity.EXTRA_RAW))) {
+            is PairingResult.Bad -> passStatus.text = r.reason
+            is PairingResult.Ok -> {
+                val signedIn = prefs.email?.trim()?.lowercase()
+                if (signedIn != null && signedIn != r.email) {
+                    passStatus.text = "That code is for ${r.email}, but you're signed in as ${prefs.email}."
+                    return@registerForActivityResult
+                }
+                Toast.makeText(this, "Paired. Key check ${r.check}.", Toast.LENGTH_LONG).show()
+                commit(r.key)
+            }
+        }
+    }
 
     private val consentLauncher =
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
@@ -63,9 +81,11 @@ class SetupActivity : ComponentActivity() {
         warnCard = findViewById(R.id.warnCard)
         keyCheckCard = findViewById(R.id.keyCheckCard)
         keyCheckCode = findViewById(R.id.keyCheckCode)
+        btnScanQr = findViewById(R.id.btnScanQr)
 
         btnSignIn.setOnClickListener { signIn() }
         btnSave.setOnClickListener { save() }
+        btnScanQr.setOnClickListener { scanLauncher.launch(Intent(this, ScanActivity::class.java)) }
         findViewById<Button>(R.id.btnUseAnyway).setOnClickListener { pendingKey?.let { commit(it) } }
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
             if (changing) finish() else { Auth.forget(); prefs.clearAccount(); showWelcome() }

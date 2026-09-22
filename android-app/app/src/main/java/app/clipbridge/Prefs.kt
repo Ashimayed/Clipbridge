@@ -39,9 +39,15 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_LAST_HASH, null)
         set(v) = sp.edit().putString(KEY_LAST_HASH, v).apply()
 
+    /** How eagerly to check Drive for new clips. See PollPolicy.kt. */
+    var syncMode: SyncMode
+        get() = SyncMode.fromId(sp.getString(KEY_SYNC_MODE, null))
+        set(v) = sp.edit().putString(KEY_SYNC_MODE, v.id).apply()
+
     fun clearAccount() {
         sp.edit().remove(KEY_EMAIL).remove(KEY_SEEN).remove(KEY_LAST_HASH)
             .putBoolean(KEY_SYNC, false).apply()
+        // syncMode is a device preference, not account data: it survives sign-out on purpose.
     }
 
     private companion object {
@@ -50,5 +56,6 @@ class Prefs(context: Context) {
         const val KEY_SYNC = "sync_enabled"
         const val KEY_SEEN = "seen_ids"
         const val KEY_LAST_HASH = "last_hash"
+        const val KEY_SYNC_MODE = "sync_mode"
     }
 }
