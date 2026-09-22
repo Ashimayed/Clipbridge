@@ -4,29 +4,198 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClipBridge</title>
+<meta name="description" content="Copy on your PC, paste on your Android phone — and back again. ClipBridge syncs your clipboard through your own Google Drive. No server, end-to-end encrypted.">
+<meta property="og:title" content="ClipBridge">
+<meta property="og:description" content="Copy here. Paste there. Your own Google Drive, encrypted before anything leaves the device.">
+<meta property="og:image" content="chrome-extension/icons/icon128.png">
+<meta name="theme-color" content="#2743C7">
+<link rel="icon" type="image/png" sizes="32x32" href="chrome-extension/icons/icon32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="chrome-extension/icons/icon16.png">
+<link rel="apple-touch-icon" href="chrome-extension/icons/icon128.png">
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.6;color:#222;background:#fff}
-  a{color:#1a73e8}
-  @media (prefers-color-scheme:dark){body{background:#121212;color:#e6e6e6}a{color:#8ab4f8}}
+  @font-face {
+    font-family: 'Onest';
+    src: url('chrome-extension/fonts/Onest.ttf') format('truetype');
+    font-weight: 100 900;
+    font-display: swap;
+  }
+
+  :root {
+    --ground: #EDF0F4; --surface: #FFFFFF; --ink: #111521; --ink2: #4A5261; --line: #D9DEE7;
+    --cobalt: #2743C7; --on-cobalt: #FFFFFF; --tint: #E4E9FB; --live: #177A52; --danger: #A8261B;
+    --glass: rgba(255,255,255,.62); --glass-line: rgba(255,255,255,.55);
+    --blob-a: rgba(39,67,199,.28); --blob-b: rgba(23,122,82,.16); --blob-c: rgba(39,67,199,.14);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0F131B; --surface: #181E29; --ink: #E8ECF3; --ink2: #A3ADBD; --line: #2A3242;
+      --cobalt: #8FA4FF; --on-cobalt: #0B1020; --tint: #222C4F; --live: #5CCB98; --danger: #FF8A7A;
+      --glass: rgba(24,30,41,.58); --glass-line: rgba(255,255,255,.08);
+      --blob-a: rgba(143,164,255,.20); --blob-b: rgba(92,203,152,.12); --blob-c: rgba(143,164,255,.10);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* liquid glass backdrop */
+  .blobs { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(70px); }
+  .blob.one   { width: 46vmax; height: 46vmax; left: -16vmax; top: -18vmax; background: var(--blob-a); animation: drift1 22s ease-in-out infinite alternate; }
+  .blob.two   { width: 38vmax; height: 38vmax; right: -14vmax; top: 8vmax;  background: var(--blob-c); animation: drift2 26s ease-in-out infinite alternate; }
+  .blob.three { width: 34vmax; height: 34vmax; left: 12vmax;  bottom: -18vmax; background: var(--blob-b); animation: drift3 30s ease-in-out infinite alternate; }
+  @keyframes drift1 { to { transform: translate(4vmax, 3vmax) scale(1.06); } }
+  @keyframes drift2 { to { transform: translate(-3vmax, 4vmax) scale(1.08); } }
+  @keyframes drift3 { to { transform: translate(3vmax, -3vmax) scale(1.05); } }
+  @media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+
+  main { max-width: 560px; margin: 0 auto; padding: 64px 20px 48px; }
+
+  .mark {
+    width: 84px; height: 84px; margin: 0 auto 22px; display: grid; place-items: center;
+    border-radius: 26px; background: var(--glass); border: 1px solid var(--glass-line);
+    backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow: 0 12px 30px -14px rgba(20,30,70,.35);
+  }
+  .mark img { width: 56px; height: 56px; border-radius: 14px; display: block; }
+
+  h1.wordmark { text-align: center; margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .tagline { text-align: center; margin: 0 0 12px; font-size: 32px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; }
+  .lede { text-align: center; margin: 0 auto 24px; max-width: 420px; color: var(--ink2); font-size: 15px; }
+
+  .badges { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 0 0 40px; }
+  .badge {
+    font-size: 12.5px; font-weight: 600; color: var(--cobalt); background: var(--tint);
+    border-radius: 999px; padding: 6px 12px;
+  }
+
+  .glass {
+    background: var(--glass); border: 1px solid var(--glass-line);
+    backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border-radius: 24px; padding: 22px; margin-bottom: 18px;
+    box-shadow: 0 20px 50px -30px rgba(20,30,70,.35);
+  }
+
+  h2.section { margin: 0 0 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); }
+
+  .get-row { display: flex; align-items: center; gap: 14px; padding: 6px 2px; }
+  .get-row + .get-row { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 16px; }
+  .get-icon {
+    width: 40px; height: 40px; border-radius: 12px; background: var(--tint); color: var(--cobalt);
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+  .get-text { flex: 1; min-width: 0; }
+  .get-text strong { display: block; font-size: 15px; font-weight: 650; }
+  .get-text span { display: block; font-size: 13px; color: var(--ink2); margin-top: 1px; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 18px;
+    border-radius: 14px; background: var(--cobalt); color: var(--on-cobalt);
+    font-weight: 650; font-size: 14px; text-decoration: none; white-space: nowrap;
+    box-shadow: 0 10px 24px -12px rgba(39,67,199,.55);
+    transition: transform .15s ease;
+  }
+  .btn-primary:active { transform: scale(.97); }
+  .pill-muted {
+    display: inline-flex; align-items: center; height: 30px; padding: 0 12px;
+    border-radius: 999px; background: var(--line); color: var(--ink2);
+    font-weight: 600; font-size: 12.5px;
+  }
+  .release-link { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--ink2); text-decoration: none; border-top: 1px solid var(--line); padding-top: 12px; }
+  .release-link:hover { color: var(--cobalt); }
+
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .steps li { display: flex; align-items: flex-start; gap: 12px; }
+  .num {
+    width: 26px; height: 26px; border-radius: 9px; background: var(--tint); color: var(--cobalt);
+    font-size: 13px; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; margin-top: 1px;
+  }
+  .steps p { margin: 0; font-size: 14.5px; }
+  .steps strong { font-weight: 650; }
+
+  footer { text-align: center; margin-top: 8px; padding: 8px 12px 0; }
+  footer .links { font-size: 13px; color: var(--ink2); }
+  footer a { color: var(--ink2); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  footer a:hover { color: var(--cobalt); }
+  footer .dot-sep { margin: 0 8px; opacity: .5; }
+  footer .made { margin-top: 10px; font-size: 12px; color: var(--ink2); opacity: .7; }
 </style>
 </head>
 <body>
-<h1>ClipBridge</h1>
-<p>Copy on your PC, paste on your Android phone – and back again. ClipBridge syncs your clipboard between Chrome and Android using a private, hidden folder in your own Google Drive. No server, no accounts, no tracking.</p>
 
-<h2>Get it</h2>
-<ul>
-  <li><strong>Chrome extension:</strong> <!-- replace with Chrome Web Store link --> coming soon on the Chrome Web Store</li>
-  <li><strong>Android app:</strong> download the latest APK from the <a href="https://github.com/Ashimayed/Clipbridge/releases/latest">GitHub Releases page</a></li>
-</ul>
+<div class="blobs" aria-hidden="true">
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+  <div class="blob three"></div>
+</div>
 
-<h2>How it works</h2>
-<ol>
-  <li>Install both the extension and the Android app.</li>
-  <li>Sign in with the same Google account on both.</li>
-  <li>Copy text on one device – it shows up on the other.</li>
-</ol>
+<main>
+  <div class="mark"><img src="chrome-extension/icons/icon128.png" alt=""></div>
+  <h1 class="wordmark">ClipBridge</h1>
+  <p class="tagline">Copy here.<br>Paste there.</p>
+  <p class="lede">Your phone and Chrome share one clipboard through your own Google Drive, encrypted before anything leaves the device.</p>
 
-<p><a href="privacy.html">Privacy Policy</a> · Contact: <a href="mailto:ashimayed2@gmail.com">ashimayed2@gmail.com</a></p>
+  <div class="badges">
+    <span class="badge">No server</span>
+    <span class="badge">Your own Google Drive</span>
+    <span class="badge">End-to-end encrypted</span>
+  </div>
+
+  <section class="glass">
+    <h2 class="section">Get it</h2>
+
+    <div class="get-row">
+      <div class="get-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      </div>
+      <div class="get-text">
+        <strong>Chrome extension</strong>
+        <span>For your computer</span>
+      </div>
+      <span class="pill-muted">Coming soon</span>
+    </div>
+
+    <div class="get-row">
+      <div class="get-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+      </div>
+      <div class="get-text">
+        <strong>Android app</strong>
+        <span>For your phone</span>
+      </div>
+      <a class="btn-primary" href="https://github.com/Ashimayed/Clipbridge/releases/latest/download/app-release.apk">Download</a>
+    </div>
+
+    <a class="release-link" href="https://github.com/Ashimayed/Clipbridge/releases/latest">View release notes on GitHub →</a>
+  </section>
+
+  <section class="glass">
+    <h2 class="section">How it works</h2>
+    <ol class="steps">
+      <li><span class="num">1</span><p>Install the extension and the Android app.</p></li>
+      <li><span class="num">2</span><p>Sign in with the <strong>same Google account</strong> on both.</p></li>
+      <li><span class="num">3</span><p>Copy text on one device — it shows up on the other.</p></li>
+    </ol>
+  </section>
+
+  <footer>
+    <div class="links">
+      <a href="privacy.html">Privacy Policy</a>
+      <span class="dot-sep">·</span>
+      <a href="mailto:ashimayed2@gmail.com">ashimayed2@gmail.com</a>
+    </div>
+  </footer>
+</main>
+
 </body>
 </html>
