@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,3 +34,17 @@ jobs:
         with:
           name: ClipBridge-apk
           path: android-app/app/build/outputs/apk/release/app-release.apk
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: ClipBridge (latest build)
+          body: |
+            Automated build from commit ${{ github.sha }}.
+            Download app-release.apk below and install it on your Android phone.
+          files: android-app/app/build/outputs/apk/release/app-release.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
