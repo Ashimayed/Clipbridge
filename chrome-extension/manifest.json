@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClipBridge",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Shares your clipboard between Chrome and your Android phone, end-to-end encrypted, through your own Google Drive.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmVh3lWNIRVHQUVoqPIBdFEgtHLe0x9sglIbAKish01ZJKiW2oi0W+Rfh94B4KyhFlKDpyS3HpT8OgRGVKHEWiqDJ2AmVICSdpWQMgrLKrJrR84CUIySjdGTYgUQts9eKg+gIqcrdImX9rNykTBJGASOlXFklikI//CHZdNEnrb+x4bmNpInrIKjqNEMWQOH+61c04qRX6VicKXuSbBHtqDwLVCBDAq1TvXnyzK4D5NPs2DJmPRxQ8Hzxw0WU7RFEfzRtbtfuzEV3RU7PeHLJeBgDLPVWXWCZ1eToh5OLOKZd34ABuZbv+44KN2IcvN3oPmWgHm8wPi/4htsYCb4soQIDAQAB",
   "minimum_chrome_version": "116",

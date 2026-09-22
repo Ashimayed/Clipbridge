@@ -3,8 +3,10 @@
 // Every clip is end-to-end encrypted (crypto.js) before upload. Drive sees only ciphertext.
 
 import * as C from './crypto.js';
+import { planPrune, MAX_PINS } from './logic.js';
 
 export const MAX_CLIPS = 10;
+export const MAX_VISIBLE = MAX_CLIPS + MAX_PINS; // newest 10 unpinned, plus up to 10 pinned that can be older
 export const DRIVE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const SMALL = 5 * 1024 * 1024;      // up to this size: one request
@@ -86,10 +88,16 @@ let keyCache = { b64: null, key: null };
 
 /** The AES key from local storage, or throws NoKeyError. */
 export async function getKey() {
+  const raw = await getRawKeyB64();
+  if (keyCache.b64 !== raw) keyCache = { b64: raw, key: await C.importKey(C.unb64(raw)) };
+  return keyCache.key;
+}
+
+/** The raw base64 key, for building a pairing QR. Same NoKeyError as getKey(). */
+export async function getRawKeyB64() {
   const { keyB64 } = await chrome.storage.local.get('keyB64');
   if (!keyB64) throw new NoKeyError();
-  if (keyCache.b64 !== keyB64) keyCache = { b64: keyB64, key: await C.importKey(C.unb64(keyB64)) };
-  return keyCache.key;
+  return keyB64;
 }
 
 const headerCache = new Map();
@@ -121,7 +129,21 @@ export async function listClips(pageSize = 20) {
     createdTime: f.createdTime || '',
     origin: f.appProperties?.origin || '',
     description: f.description || null,
+    pinned: f.appProperties?.pinned === '1',
   }));
+}
+
+/**
+ * Marks a clip pinned or not. A lightweight metadata PATCH: the (possibly large, encrypted)
+ * content is never re-uploaded. The pin flag is visible in Drive as plain metadata — like the
+ * clip's size and timestamp already are — but it never reveals the clip's actual content.
+ */
+export async function setPinned(id, pinned) {
+  await call(`${DRIVE}/files/${id}?fields=id`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+    body: JSON.stringify({ appProperties: { pinned: pinned ? '1' : null } }),
+  });
 }
 
 export async function email() {
@@ -135,7 +157,8 @@ export async function deleteClip(id) { await call(`${DRIVE}/files/${id}`, { meth
 
 export async function prune() {
   const all = await listClips(100);
-  for (const c of all.slice(MAX_CLIPS)) { try { await deleteClip(c.id); } catch { /* fine */ } }
+  const ids = planPrune(all, MAX_CLIPS);
+  for (const id of ids) { try { await deleteClip(id); } catch { /* other device already pruned it */ } }
 }
 
 export async function deleteAll() {
