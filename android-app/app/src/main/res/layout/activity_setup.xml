@@ -77,6 +77,8 @@
                 android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" android:gravity="center" android:textSize="14sp" />
             <Button android:id="@+id/btnSavePass" style="@style/Btn.Primary" android:layout_width="match_parent" android:layout_marginTop="12dp"
                 android:text="Save passphrase" />
+            <Button android:id="@+id/btnScanQr" style="@style/Btn.Quiet" android:layout_width="match_parent" android:layout_marginTop="10dp"
+                android:drawableStart="@drawable/ic_qr" android:text="Or scan the QR code from Chrome" android:textSize="15sp" />
         </LinearLayout>
     </LinearLayout>
     </FrameLayout>
