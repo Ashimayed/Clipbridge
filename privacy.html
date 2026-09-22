@@ -4,45 +4,107 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClipBridge – Privacy Policy</title>
+<link rel="icon" type="image/png" sizes="32x32" href="chrome-extension/icons/icon32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="chrome-extension/icons/icon16.png">
+<meta name="theme-color" content="#2743C7">
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.6;color:#222;background:#fff}
-  h1,h2{line-height:1.25} a{color:#1a73e8}
-  @media (prefers-color-scheme:dark){body{background:#121212;color:#e6e6e6}a{color:#8ab4f8}}
+  @font-face {
+    font-family: 'Onest';
+    src: url('chrome-extension/fonts/Onest.ttf') format('truetype');
+    font-weight: 100 900;
+    font-display: swap;
+  }
+  :root {
+    --ground: #EDF0F4; --ink: #111521; --ink2: #4A5261; --line: #D9DEE7; --cobalt: #2743C7; --tint: #E4E9FB;
+    --glass: rgba(255,255,255,.62); --glass-line: rgba(255,255,255,.55);
+    --blob-a: rgba(39,67,199,.24); --blob-b: rgba(23,122,82,.14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0F131B; --ink: #E8ECF3; --ink2: #A3ADBD; --line: #2A3242; --cobalt: #8FA4FF; --tint: #222C4F;
+      --glass: rgba(24,30,41,.6); --glass-line: rgba(255,255,255,.08);
+      --blob-a: rgba(143,164,255,.16); --blob-b: rgba(92,203,152,.10);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.6; min-height: 100vh; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  .blobs { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(70px); }
+  .blob.one { width: 44vmax; height: 44vmax; left: -16vmax; top: -18vmax; background: var(--blob-a); }
+  .blob.two { width: 36vmax; height: 36vmax; right: -14vmax; bottom: -16vmax; background: var(--blob-b); }
+
+  main { max-width: 680px; margin: 0 auto; padding: 48px 20px 60px; }
+  .back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink2); text-decoration: none; margin-bottom: 18px; }
+  .back:hover { color: var(--cobalt); }
+
+  .glass {
+    background: var(--glass); border: 1px solid var(--glass-line);
+    backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border-radius: 24px; padding: 28px clamp(20px, 5vw, 40px);
+    box-shadow: 0 20px 50px -30px rgba(20,30,70,.35);
+  }
+
+  h1 { margin: 0 0 4px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .updated { margin: 0 0 22px; font-size: 13px; color: var(--ink2); }
+  h2 { margin: 26px 0 10px; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  p { margin: 0 0 12px; color: var(--ink); }
+  ul, ol { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  li strong { font-weight: 650; }
+  code { background: var(--tint); color: var(--cobalt); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  a { color: var(--cobalt); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: currentColor; }
 </style>
 </head>
 <body>
-<h1>ClipBridge Privacy Policy</h1>
-<p><em>Last updated: 23 September 2026</em></p>
 
-<p>ClipBridge is a free, open tool that syncs your clipboard between the ClipBridge Chrome extension and the ClipBridge Android app. This policy explains what data ClipBridge touches and what it does with it.</p>
+<div class="blobs" aria-hidden="true">
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+</div>
 
-<h2>What ClipBridge accesses</h2>
-<ul>
-  <li><strong>Clipboard content you choose to sync</strong> – text you copy on one device so it can appear on your other device.</li>
-  <li><strong>Google Drive app data folder</strong> – ClipBridge requests only the <code>drive.appdata</code> scope. This gives it access to a hidden folder in <em>your own</em> Google Drive that only ClipBridge can see. It cannot read, list, or change any of your other Drive files.</li>
-  <li><strong>Your Google account sign-in</strong> – used only to get permission to use that app data folder.</li>
-</ul>
+<main>
+  <a class="back" href="index.html">← ClipBridge</a>
+  <div class="glass">
+    <h1>ClipBridge Privacy Policy</h1>
+    <p class="updated">Last updated: 23 September 2026</p>
 
-<h2>Where your data goes</h2>
-<p>Clipboard data is stored only in your own Google Drive app data folder and on your own devices. ClipBridge has <strong>no server</strong>. The developer never receives, sees, stores, or shares your clipboard content, your account details, or any other personal data.</p>
+    <p>ClipBridge is a free, open tool that syncs your clipboard between the ClipBridge Chrome extension and the ClipBridge Android app. This policy explains what data ClipBridge touches and what it does with it.</p>
 
-<h2>What ClipBridge does not do</h2>
-<ul>
-  <li>No analytics, tracking, or advertising.</li>
-  <li>No selling or sharing of data with anyone.</li>
-  <li>No use of your data to train AI or machine-learning models.</li>
-</ul>
-<p>ClipBridge's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+    <h2>What ClipBridge accesses</h2>
+    <ul>
+      <li><strong>Clipboard content you choose to sync</strong> – text you copy on one device so it can appear on your other device.</li>
+      <li><strong>Google Drive app data folder</strong> – ClipBridge requests only the <code>drive.appdata</code> scope. This gives it access to a hidden folder in <em>your own</em> Google Drive that only ClipBridge can see. It cannot read, list, or change any of your other Drive files.</li>
+      <li><strong>Your Google account sign-in</strong> – used only to get permission to use that app data folder.</li>
+    </ul>
 
-<h2>Deleting your data</h2>
-<p>You can remove ClipBridge's access and data at any time:</p>
-<ol>
-  <li>Go to <a href="https://myaccount.google.com/permissions">Google Account → Third-party apps &amp; services</a>, select ClipBridge, and remove access.</li>
-  <li>To delete the stored app data, open <a href="https://drive.google.com/drive/settings">Google Drive → Settings → Manage apps</a>, find ClipBridge, and choose <em>Delete hidden app data</em>.</li>
-  <li>Uninstall the extension and the Android app.</li>
-</ol>
+    <h2>Where your data goes</h2>
+    <p>Clipboard data is stored only in your own Google Drive app data folder and on your own devices. ClipBridge has <strong>no server</strong>. The developer never receives, sees, stores, or shares your clipboard content, your account details, or any other personal data.</p>
 
-<h2>Contact</h2>
-<p>Questions? Email <a href="mailto:ashimayed2@gmail.com">ashimayed2@gmail.com</a>.</p>
+    <h2>What ClipBridge does not do</h2>
+    <ul>
+      <li>No analytics, tracking, or advertising.</li>
+      <li>No selling or sharing of data with anyone.</li>
+      <li>No use of your data to train AI or machine-learning models.</li>
+    </ul>
+    <p>ClipBridge's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+    <h2>Deleting your data</h2>
+    <p>You can remove ClipBridge's access and data at any time:</p>
+    <ol>
+      <li>Go to <a href="https://myaccount.google.com/permissions">Google Account → Third-party apps &amp; services</a>, select ClipBridge, and remove access.</li>
+      <li>To delete the stored app data, open <a href="https://drive.google.com/drive/settings">Google Drive → Settings → Manage apps</a>, find ClipBridge, and choose <em>Delete hidden app data</em>.</li>
+      <li>Uninstall the extension and the Android app.</li>
+    </ol>
+
+    <h2>Contact</h2>
+    <p>Questions? Email <a href="mailto:ashimayed2@gmail.com">ashimayed2@gmail.com</a>.</p>
+  </div>
+</main>
+
 </body>
 </html>
