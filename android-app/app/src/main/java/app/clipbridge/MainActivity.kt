@@ -7,7 +7,10 @@ import android.os.Build
 import android.os.Bundle
 import android.text.format.Formatter
 import android.view.View
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -32,8 +35,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var bridgeEmail: TextView
     private lateinit var historyList: LinearLayout
     private lateinit var emptyText: TextView
+    private lateinit var searchBox: EditText
     private var keyCheckValue: TextView? = null  // two-pane layout only
     private var receiveSwitch: Switch? = null     // two-pane layout only
+    private var allItems: List<ClipItem> = emptyList()
 
     private val notifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -48,6 +53,7 @@ class MainActivity : ComponentActivity() {
         bridgeEmail = findViewById(R.id.bridgeEmail)
         historyList = findViewById(R.id.historyList)
         emptyText = findViewById(R.id.emptyText)
+        searchBox = findViewById(R.id.searchBox)
         keyCheckValue = findViewById(R.id.keyCheckValue)
         receiveSwitch = findViewById(R.id.receiveSwitch)
 
@@ -63,25 +69,34 @@ class MainActivity : ComponentActivity() {
             if (on) SyncService.start(this) else SyncService.stop(this)
             renderStatus()
         }
+        searchBox.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) { applyFilter() }
+        })
 
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
 
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) { repo.history.collect { renderHistory(it) } }
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repo.history.collect { allItems = it; applyFilter() }
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
         if (!ready()) { openSetup(); return }
+        ActivityClock.touch() // opening the app means you're likely about to paste something
         renderStatus()
         if (prefs.syncEnabled) SyncService.start(this) // no-op if already running
         lifecycleScope.launch {
             try {
                 repo.refreshHistory(withPreviews = true)
-                renderHistory(repo.history.value)
+                allItems = repo.history.value
+                applyFilter()
             } catch (e: NeedsConsentException) {
                 bridgeStatus.text = "Sign in again"
             } catch (e: Exception) {
@@ -105,9 +120,26 @@ class MainActivity : ComponentActivity() {
         receiveSwitch?.isChecked = on
     }
 
-    private fun renderHistory(items: List<ClipItem>) {
+    /** Filters the already-decrypted, already-fetched list by whatever's in the search box. Nothing is re-fetched. */
+    private fun applyFilter() {
+        val q = searchBox.text?.toString()?.trim()?.lowercase().orEmpty()
+        val filtered = if (q.isEmpty()) allItems else allItems.filter { item ->
+            val h = item.header
+            val haystack = buildString {
+                if (h == null) { append("locked clip") } else {
+                    append(h.name).append(' ').append(h.device).append(' ').append(h.kind)
+                    if (h.kind == "text") repo.previews[item.id]?.let { append(' ').append(it) }
+                }
+            }.lowercase()
+            haystack.contains(q)
+        }
+        renderHistory(filtered, searching = q.isNotEmpty())
+    }
+
+    private fun renderHistory(items: List<ClipItem>, searching: Boolean = false) {
         historyList.removeAllViews()
         emptyText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        emptyText.text = if (searching) "Nothing matches that search." else "Nothing yet. Copy something on your PC, or tap Send clipboard."
         // Two columns only when the list pane is genuinely wide (big tablets, desktop mode).
         val paneDp = resources.configuration.screenWidthDp - (if (keyCheckValue != null) 444 else 32)
         val columns = if (paneDp >= 620) 2 else 1
@@ -133,7 +165,20 @@ class MainActivity : ComponentActivity() {
         val title = v.findViewById<TextView>(R.id.clipTitle)
         val meta = v.findViewById<TextView>(R.id.clipMeta)
         val copy = v.findViewById<ImageButton>(R.id.clipCopy)
+        val pin = v.findViewById<ImageButton>(R.id.clipPin)
         fun icon(res: Int) { tileText.visibility = View.GONE; tileIcon.visibility = View.VISIBLE; tileIcon.setImageResource(res) }
+
+        pin.contentDescription = if (item.pinned) "Unpin" else "Pin this clip"
+        pin.setColorFilter(ContextCompat.getColor(this, if (item.pinned) R.color.cobalt else R.color.ink2))
+        pin.setOnClickListener {
+            pin.isEnabled = false
+            lifecycleScope.launch {
+                try { repo.setPinned(item, !item.pinned) }
+                catch (e: PinLimitException) { Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show() }
+                catch (e: Exception) { Toast.makeText(this@MainActivity, "Couldn't update: ${e.message}", Toast.LENGTH_SHORT).show() }
+                finally { pin.isEnabled = true }
+            }
+        }
 
         val h = item.header
         val from = when {

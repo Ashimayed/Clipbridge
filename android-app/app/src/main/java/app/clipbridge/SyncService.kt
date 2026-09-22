@@ -44,7 +44,9 @@ class SyncService : Service() {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             when (i.action) {
-                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> { screenOn.set(true); wake.set(true) }
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                    screenOn.set(true); wake.set(true); ActivityClock.touch()
+                }
                 Intent.ACTION_SCREEN_OFF -> screenOn.set(false)
             }
         }
@@ -78,14 +80,21 @@ class SyncService : Service() {
         return START_STICKY
     }
 
+    /**
+     * How often to check Drive. Two things decide the wait: [PollPolicy] gives the "normal" pace
+     * for the current sync mode and how long it's been since anything happened, and a separate
+     * error multiplier stretches that out further after consecutive failures (offline, Drive
+     * busy) — the two combine as whichever is longer, so a struggling connection doesn't get
+     * hammered just because the user is actively pasting things.
+     */
     private suspend fun runLoop() {
-        var backoff = POLL_MS
+        var errorStreak = 0
         var keyNotified = false
         while (scope.isActive) {
             if (screenOn.get()) {
                 try {
                     app.repo.poll()
-                    backoff = POLL_MS
+                    errorStreak = 0
                     keyNotified = false
                 } catch (e: CancellationException) {
                     throw e
@@ -94,15 +103,19 @@ class SyncService : Service() {
                         keyNotified = true
                         Notifier.alert(this, "Finish setting up ClipBridge", "Set your passphrase to start syncing.")
                     }
-                    backoff = 30_000L
+                    sleep(30_000L); continue
                 } catch (e: NeedsConsentException) {
-                    backoff = 60_000L       // waits for the user to sign in again in the app
+                    sleep(60_000L); continue // waits for the user to sign in again in the app
                 } catch (e: Exception) {
                     Log.w(TAG, "poll failed: ${e.message}")
-                    backoff = (backoff * 2).coerceAtMost(60_000L) // offline or Drive busy
+                    errorStreak = (errorStreak + 1).coerceAtMost(10)
                 }
             }
-            sleep(if (screenOn.get()) backoff else IDLE_MS)
+            val normal = PollPolicy.jittered(
+                PollPolicy.intervalMs(app.prefs.syncMode, ActivityClock.idleMs()), Math.random()
+            )
+            val afterErrors = if (errorStreak == 0) 0L else (3_000L * (1L shl (errorStreak - 1))).coerceAtMost(60_000L)
+            sleep(if (screenOn.get()) maxOf(normal, afterErrors) else IDLE_MS)
         }
     }
 
@@ -127,7 +140,6 @@ class SyncService : Service() {
 
     companion object {
         private const val TAG = "ClipBridge"
-        private const val POLL_MS = 4_000L
         private const val IDLE_MS = 2_000L
         private const val ACTION_STOP = "app.clipbridge.STOP"
 

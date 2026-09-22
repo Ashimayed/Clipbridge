@@ -34,11 +34,17 @@ enum class KeyMatch { MATCHES_OTHER_DEVICE, NO_CLIPS_YET, DIFFERENT_FROM_OTHER_D
 /** No passphrase set on this device yet. */
 class NoKeyException : Exception("Set your passphrase in ClipBridge first")
 
+/** Already at PrunePlan.MAX_PINS pinned clips. */
+class PinLimitException : Exception("You can pin up to ${PrunePlan.MAX_PINS} clips. Unpin one first.")
+
 /** A file copied into our cache, ready to encrypt and upload. */
 data class Staged(val file: File, val name: String, val mime: String, val hash: String)
 
 /** One clip for the UI. [header] is null when this device can't decrypt it. */
-data class ClipItem(val id: String, val createdTime: String, val mine: Boolean, val header: ClipHeader?, val size: Long)
+data class ClipItem(
+    val id: String, val createdTime: String, val mine: Boolean,
+    val header: ClipHeader?, val size: Long, val pinned: Boolean = false,
+)
 
 class ClipRepository(
     private val ctx: Context,
@@ -105,11 +111,27 @@ class ClipRepository(
     fun saveKey(key: ByteArray) {
         vault.save(key)
         headers.clear(); previews.clear(); undecryptableNotified.clear()
+        DebugLog.add("Passphrase saved, key check ${Crypto.keyCheck(key)}")
+    }
+
+    // ================================================================ pinning
+
+    /** Toggles a clip's pinned state. Pinned clips are excluded from the "keep the newest 10" pruning. */
+    suspend fun setPinned(item: ClipItem, pinned: Boolean) {
+        if (pinned) {
+            val current = withToken { t -> drive.list(t, pageSize = 100) }.count { it.pinned }
+            if (current >= PrunePlan.MAX_PINS) throw PinLimitException()
+        }
+        withToken { t -> drive.setPinned(t, item.id, pinned) }
+        DebugLog.add("Clip ${if (pinned) "pinned" else "unpinned"}")
+        ActivityClock.touch()
+        runCatching { refreshHistory(withPreviews = false) }
     }
 
     // ================================================================ sending
 
     suspend fun sendText(text: String): SendResult = sendLock.withLock {
+        ActivityClock.touch()
         val hash = sha256Text(text)
         if (hash == prefs.lastHash) return@withLock SendResult.ALREADY_SYNCED
         val bytes = text.toByteArray(Charsets.UTF_8)
@@ -131,6 +153,7 @@ class ClipRepository(
     suspend fun sendStaged(s: Staged): SendResult = sendLock.withLock { sendStagedLocked(s, kind = null) }
 
     private suspend fun sendStagedLocked(s: Staged, kind: String?): SendResult {
+        ActivityClock.touch()
         try {
             if (s.hash == prefs.lastHash) return SendResult.ALREADY_SYNCED
             val key = key()
@@ -148,6 +171,8 @@ class ClipRepository(
 
     /** The upload already succeeded: pruning/refresh problems must not report it as failed. */
     private suspend fun afterUpload() {
+        DebugLog.add("Sent a clip")
+        ActivityClock.touch()
         try { withToken { t -> drive.prune(t) } } catch (e: CancellationException) { throw e } catch (_: Exception) {}
         try { refreshHistory(withPreviews = false) } catch (e: CancellationException) { throw e } catch (_: Exception) {}
     }
@@ -181,7 +206,7 @@ class ClipRepository(
     suspend fun poll() = pollLock.withLock {
         val key = vault.load() ?: throw NoKeyException()
         val clips = try {
-            withToken { t -> drive.list(t) }
+            withToken { t -> drive.list(t, pageSize = LIST_PAGE_SIZE) }
         } catch (e: NeedsConsentException) {
             if (!consentNotified) {
                 consentNotified = true
@@ -190,7 +215,8 @@ class ClipRepository(
             throw e
         }
         if (consentNotified) { consentNotified = false; Notifier.clearAlert(ctx) }
-        _history.value = clips.take(DriveApi.MAX_CLIPS).map { toItem(it, key) }
+        _history.value = clips.take(MAX_VISIBLE).map { toItem(it, key) }
+        if (clips.isNotEmpty()) runCatching { ActivityClock.touch(parseTime(clips.first().createdTime)) }
 
         val seen = prefs.seenIds
         if (seen == null) { prefs.seenIds = clips.map { it.id }; return@withLock } // first run: replay nothing
@@ -205,6 +231,7 @@ class ClipRepository(
         val opened = openCached(newest, key)
         if (opened == null) {
             prefs.seenIds = allSeen
+            DebugLog.add("Couldn't unlock an incoming clip: passphrase mismatch")
             if (undecryptableNotified.add(newest.id)) Notifier.alert(ctx, "A clip couldn't be unlocked",
                 "Your devices seem to use different passphrases. Compare the key check codes in Settings.")
             return@withLock
@@ -212,19 +239,23 @@ class ClipRepository(
         try {
             apply(newest.id, opened.first, opened.second, notify = true)
             prefs.seenIds = allSeen
+            DebugLog.add("Received a clip from ${opened.second.device.ifBlank { "another device" }}")
+            ActivityClock.touch()
         } catch (e: CancellationException) {
             throw e
         } catch (e: TransientException) {
             prefs.seenIds = allSeen - newest.id // offline mid-download: try this clip again next round
+            DebugLog.add("Couldn't fetch an incoming clip yet: ${e.message}")
             throw e
         } catch (e: NeedsConsentException) {
             prefs.seenIds = allSeen - newest.id
             throw e
         } catch (e: PermanentException) {
             prefs.seenIds = allSeen
-            if (e.code != 404) throw e // 404: the other device already replaced it
+            if (e.code != 404) { DebugLog.add("Couldn't apply an incoming clip: ${e.message}"); throw e }
         } catch (e: Exception) {
             prefs.seenIds = allSeen // e.g. tampered content: never retry forever
+            DebugLog.add("Rejected an incoming clip: ${e.message}")
             throw e
         }
     }
@@ -279,7 +310,7 @@ class ClipRepository(
 
     suspend fun refreshHistory(withPreviews: Boolean) {
         val key = vault.load() ?: return
-        val clips = withToken { t -> drive.list(t) }.take(DriveApi.MAX_CLIPS)
+        val clips = withToken { t -> drive.list(t, pageSize = LIST_PAGE_SIZE) }.take(MAX_VISIBLE)
         if (withPreviews) {
             for (c in clips) {
                 val o = openCached(c, key) ?: continue
@@ -310,7 +341,10 @@ class ClipRepository(
     // ================================================================ helpers
 
     private fun toItem(c: DriveClip, key: ByteArray) =
-        ClipItem(c.id, c.createdTime, c.origin == prefs.deviceId, openCached(c, key)?.second, c.size)
+        ClipItem(c.id, c.createdTime, c.origin == prefs.deviceId, openCached(c, key)?.second, c.size, c.pinned)
+
+    private fun parseTime(iso: String): Long =
+        runCatching { java.time.Instant.parse(iso).toEpochMilli() }.getOrDefault(System.currentTimeMillis())
 
     private fun openCached(c: DriveClip, key: ByteArray): Pair<ByteArray, ClipHeader>? {
         headers[c.id]?.let { return it }
@@ -366,6 +400,9 @@ class ClipRepository(
         private const val SMALL_UPLOAD = 4 * 1024 * 1024
         /** Android's clipboard goes through a ~1 MB binder buffer; stay well under it. */
         const val MAX_CLIPBOARD_TEXT = 256 * 1024L
+        /** The newest 10 unpinned clips, plus up to 10 pinned ones that can be much older. */
+        const val MAX_VISIBLE = DriveApi.MAX_CLIPS + PrunePlan.MAX_PINS
+        private const val LIST_PAGE_SIZE = MAX_VISIBLE + 20 // headroom for a burst from another device
 
         fun sha256Text(text: String): String =
             hex(MessageDigest.getInstance("SHA-256").digest(text.replace("\r\n", "\n").toByteArray(Charsets.UTF_8)))

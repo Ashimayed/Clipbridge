@@ -2,6 +2,8 @@ package app.clipbridge
 
 import android.app.AlertDialog
 import android.app.StatusBarManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.drawable.Icon
@@ -47,6 +49,13 @@ class SettingsActivity : ComponentActivity() {
             }
         }
         findViewById<LinearLayout>(R.id.rowTile).setOnClickListener { addTile() }
+        findViewById<LinearLayout>(R.id.rowSyncSpeed).setOnClickListener { pickSyncSpeed() }
+        findViewById<LinearLayout>(R.id.rowDebugLog).setOnClickListener {
+            val log = DebugLog.dump(prefs)
+            val cm = getSystemService(ClipboardManager::class.java)
+            cm.setPrimaryClip(ClipData.newPlainText("ClipBridge debug log", log))
+            Toast.makeText(this, "Debug log copied", Toast.LENGTH_SHORT).show()
+        }
 
         findViewById<LinearLayout>(R.id.rowDeleteAll).setOnClickListener {
             confirm("Delete all clips?", "They're removed from your Google Drive for every device. This can't be undone.", "Delete all") {
@@ -72,9 +81,24 @@ class SettingsActivity : ComponentActivity() {
         super.onResume()
         findViewById<TextView>(R.id.rowKeyValue).text = repo.vault.keyCheck ?: "Not set"
         findViewById<TextView>(R.id.rowEmailTitle).text = prefs.email ?: ""
+        findViewById<TextView>(R.id.rowSyncSpeedSub).text = prefs.syncMode.label
         val allowed = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         findViewById<TextView>(R.id.rowBatterySub).text =
             if (allowed) "Allowed. Clips keep arriving" else "Not allowed yet. Tap to allow"
+    }
+
+    private fun pickSyncSpeed() {
+        val modes = SyncMode.values()
+        val labels = modes.map { "${it.label}\n${it.hint}" }.toTypedArray()
+        val current = modes.indexOf(prefs.syncMode)
+        AlertDialog.Builder(this).setTitle("Sync speed")
+            .setSingleChoiceItems(labels, current) { dialog, which ->
+                prefs.syncMode = modes[which]
+                findViewById<TextView>(R.id.rowSyncSpeedSub).text = modes[which].label
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun addTile() {
