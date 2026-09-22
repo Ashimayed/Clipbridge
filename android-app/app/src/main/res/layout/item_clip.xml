@@ -16,6 +16,8 @@
         <TextView android:id="@+id/clipMeta" style="@style/T.Meta" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="3dp" android:ellipsize="end" android:maxLines="1" />
     </LinearLayout>
+    <ImageButton android:id="@+id/clipPin" style="@style/IconBtn" android:contentDescription="Pin this clip"
+        android:src="@drawable/ic_pin" android:tint="@color/ink2" />
     <ImageButton android:id="@+id/clipCopy" style="@style/IconBtn" android:contentDescription="Copy again"
         android:src="@drawable/ic_copy" android:tint="@color/ink2" />
 </LinearLayout>

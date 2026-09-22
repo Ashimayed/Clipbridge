@@ -62,6 +62,16 @@
                     </LinearLayout>
                     <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
                 </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/line" />
+                <LinearLayout android:id="@+id/rowSyncSpeed" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowSyncSpeedTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sync speed" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowSyncSpeedSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Balanced" android:visibility="visible" />
+                    </LinearLayout>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
+                </LinearLayout>
             </LinearLayout>
             <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Clips" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
@@ -91,6 +101,17 @@
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                         <TextView android:id="@+id/rowSignOutTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sign out" android:textColor="@color/danger" />
                         <TextView android:id="@+id/rowSignOutSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Also forgets the passphrase on this phone" android:visibility="visible" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="Support" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowDebugLog" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/rowDebugLogTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Copy debug log" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowDebugLogSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Safe to paste into an email — no passphrase or clip content" android:visibility="visible" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
