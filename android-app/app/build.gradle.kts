@@ -11,8 +11,8 @@ android {
         applicationId = "app.clipbridge"
         minSdk = 29          // Android 10+
         targetSdk = 34
-        versionCode = 2
-        versionName = "2.0"
+        versionCode = 3
+        versionName = "2.1"
     }
 
     // One fixed key for every build, so the SHA-1 registered in Google Cloud never changes.
@@ -45,6 +45,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
