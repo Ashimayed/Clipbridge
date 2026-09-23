@@ -22,12 +22,23 @@ Setup takes about 20 minutes, once.
 | What | Value |
 |---|---|
 | Android package name | `app.clipbridge` |
-| Android SHA-1 fingerprint | `D2:27:34:F8:50:42:8A:34:E8:09:95:60:23:D7:80:FD:36:7B:ED:CD` |
+| Android SHA-1 fingerprint | `49:31:AA:9F:FF:7F:F3:85:03:19:7D:81:D2:AB:1A:B5:AC:0B:9E:DC` |
 | Chrome extension ID | `oklffclikimjimhihbkaoddchdndlhdj` |
 
-These stay fixed because the signing key (`android-app/app/clipbridge.keystore`) and the
-extension key (inside `manifest.json`) are included. They were generated just for you.
-**Keep this folder private.** If you put it on GitHub, make the repository **Private**.
+The Android SHA-1 stays fixed because every build uses the same signing key — but unlike
+earlier versions of this project, **the keystore itself is never committed to this repo**,
+and its password never appears in any source file. It lives only in:
+
+- **GitHub Actions secrets** (`CLIPBRIDGE_KEYSTORE_BASE64`, `CLIPBRIDGE_KEYSTORE_PASSWORD`,
+  `CLIPBRIDGE_KEY_ALIAS`) — Settings → Secrets and variables → Actions — used by CI to sign
+  release builds.
+- Optionally, a local `android-app/keystore.properties` file (copy it from
+  `keystore.properties.example` and fill in your own values) if you want to build locally.
+  This file is gitignored.
+
+If you ever fork or copy this project, **generate your own keystore** (`keytool -genkeypair
+...`) rather than reusing anyone else's — whoever holds the keystore file + password can
+sign updates that any device already running the app will accept as legitimate.
 
 ---
 
@@ -83,8 +94,9 @@ Leave the folder where it is. Chrome loads the extension from it every time.
    (typing the slashes creates the folders). Open `.github/workflows/build-android.yml` from your folder in Notepad,
    copy everything, paste it into GitHub, and click **Commit changes**.
 3. Open the **Actions** tab. *Build Android APK* runs by itself in about 5 minutes. When it shows a green tick,
-   open the run and download **ClipBridge-apk** at the bottom.
-4. Unzip it to get `app-release.apk`, move it to your phone, and tap it to install (allow installs from that source once).
+   either download **ClipBridge-apk** from the run's Artifacts, or grab `ClipBridge.apk` from the
+   repo's **Releases** page (each successful build publishes one, numbered 0.1, 0.2, …).
+4. Move `ClipBridge.apk` to your phone and tap it to install (allow installs from that source once).
 
 **Option B: Android Studio.** Open the `android-app` folder, wait for the sync, then **Build → Build Bundle(s) / APK(s) → Build APK(s)**,
 or run `./gradlew assembleRelease`.
