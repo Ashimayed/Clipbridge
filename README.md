@@ -4,7 +4,11 @@
 
 - **Private by design.** Everything is end-to-end encrypted with a phrase only you know. Google — and anyone who somehow got into your Drive — would only see scrambled data, never your actual clips or file names.
 - **Keeps the last 10 clips**, plus up to 10 you pin so they never age out. A search box finds an older one fast.
-- **Text, photos, or any file** — no size limit beyond your own Drive space. Big files stream over in pieces.
+- **Send text, photos, videos, or any other file, either way** — type a note or tap the paperclip on the phone or in Chrome. No size limit beyond your own Drive space: big files stream over in pieces, show a progress bar, and pick up where they stopped if the connection drops.
+- **Send several files at once** — every one of them arrives, not just the last.
+- **Previews** of images right in the list, with their file names; other files show their type (PDF, ZIP…) at a glance.
+- **Tidy history** — pinned clips sit in their own section at the top. Swipe a clip away on the phone (with a few seconds to undo), or use its delete button in Chrome.
+- **Name your devices** ("Work laptop", "Mum's phone") so you always know where something came from. Names travel encrypted, like everything else.
 - **Quiet by default.** No sound, no vibration, no pop-up when something new arrives.
 - **Works everywhere** — phone, tablet, foldable, light mode, dark mode.
 - **You control the pace.** Check constantly for instant sync, or back off when idle to save battery.
@@ -21,7 +25,7 @@ Setup takes about 5 minutes, once.
 
 ClipBridge isn't on the Chrome Web Store yet, so it installs by hand — it only takes about a minute, and Chrome walks you through it:
 
-1. Download **[ClipBridge-Chrome-Extension.zip](https://raw.githubusercontent.com/Ashimayed/Clipbridge/main/ClipBridge-Chrome-Extension.zip)**.
+1. Download **[ClipBridge-Chrome-Extension.zip](https://github.com/Ashimayed/Clipbridge/releases/latest/download/ClipBridge-Chrome-Extension.zip)** (the latest release, currently version <!-- version -->2.2.0<!-- /version -->).
 2. **Unzip it** somewhere you won't delete later — Chrome loads the extension from this folder every time it starts.
 3. In Chrome, go to **chrome://extensions** (type or paste that into the address bar and press Enter).
 4. Turn on **Developer mode**, top right. This is just Chrome's way of allowing extensions that aren't from the Web Store yet — it doesn't change anything else about your browser.
@@ -54,12 +58,15 @@ That's it — copy something on one device, and it should land on the other with
 | Copy text on the computer | It's on your phone's clipboard in a few seconds, with a silent notice — just paste. |
 | Copy a screenshot on the computer | It arrives on the phone as an image. |
 | Copy something on the phone | Swipe down and tap **Send clipboard**, or use the button in the app. |
-| Share a photo or file from the phone | **Share → Send with ClipBridge** — it lands in the computer's `Downloads/ClipBridge`. |
-| Send a file from the computer | ClipBridge icon → **Files**, or paste an image straight into the popup. |
+| Type a quick note to send | Type it in the box at the bottom of the app (or the top of the Chrome popup) and tap the arrow. |
+| Send photos, videos or any file from the phone | In the app, tap the **paperclip → Photos and videos** or **Files** (pick several at once), or from any app use **Share → Send with ClipBridge**. They land in the computer's `Downloads/ClipBridge`. |
+| Send a file from the computer | ClipBridge icon → **paperclip**, or paste/drag files straight into the popup. Big ones keep going even if you close the popup. |
+| Delete a clip everywhere | Phone: swipe it left or right (tap **Undo** within 4 seconds if that was a mistake). Chrome: hover over it, click the bin, then **Delete?** to confirm. |
+| Give a device a name | Phone: **Settings → Device name**. Chrome: **Settings → This computer's name**. |
 | Copying a password | Flip **Auto-send** off in the popup first — nothing uploads until you flip it back on. |
 | Right-click on a web page | **Send selected text / link / this page to phone** — works even while auto-send is paused. |
 | Need an older clip | The last 10 are listed in the app and the popup. Tap one to copy it again, or use **Search**. |
-| Want to keep a clip around | Tap its pin icon (up to 10 pinned). Pinned clips never get pushed out by newer ones. |
+| Want to keep a clip around | Tap its pin icon (up to 10 pinned). Pinned clips move to their own **Pinned** section at the top and never get pushed out by newer ones. |
 | Setting up a second phone or computer | In Chrome: **Settings → Set up another device** shows a QR code — scan it from the new phone's passphrase screen instead of retyping. |
 | Want it to check more or less often | **Settings → Sync speed**: Instant, Balanced, or Battery saver. |
 | Something's not syncing and you'd like help | **Settings → Copy debug log** (phone) or **Copy debug info** (Chrome) — safe to paste into an email, it never contains your passphrase or clip content. |
@@ -99,6 +106,9 @@ In plain language, no computer science degree required: **the only thing that ca
 - **On your phone:** the key lives inside Android's hardware-backed Keystore. It's never included in backups or device transfers, and nothing in the app's files can read it out. Other apps can't reach ClipBridge's clipboard-reading code directly — only through the normal Share screen.
 - **Nobody else can push you a fake update:** Android only installs updates signed with the same key as the one already on your phone. The Chrome extension's code lives on your computer, so a Windows/Mac password is what protects that side.
 - **The debug log is scrubbed** before it's ever shown — no email address, no access token, no file ID, nothing long enough to be a key. Just short, generic notes like "Sent a clip" or "Poll failed: offline." Safe to paste into an email.
+- **Device names** are inside each clip's encrypted header, so Drive never sees them.
+- **Previews and received files stay on your device**, in app-private storage that is never backed up. Previews are made once from data the device already has whenever possible (so images aren't downloaded twice), and they're wiped on sign-out, passphrase change, or **Delete all clips**. Files picked in Chrome wait in the extension's private storage only until they're sent, and are removed right after — sent or not.
+- **On the lock screen** the phone only says "New clip from ClipBridge", never what the clip says.
 - **A pin** is stored as a plain flag in Drive's metadata, next to the size and timestamp Drive already shows — it says a clip is marked to stick around, nothing about what's in it.
 - **The QR pairing code** is just your existing key, repackaged — it can't do anything your passphrase couldn't already do, and it's on screen for 60 seconds at most.
 
@@ -113,6 +123,8 @@ A few honest limits, so nothing catches you off guard:
 - **Files copied in File Explorer** (Ctrl+C on a file, not a copied screenshot) can't be read by Chrome — use **Files** in the popup instead.
 - **Very long text** (over 256 KB on the phone, 5 MB in Chrome) is too big for a clipboard, so it's saved as a `.txt` file in `Downloads/ClipBridge` instead.
 - **Pinning caps out at 10** — unpin one before pinning another.
+- **When several things arrive at once**, every file is saved, but only the newest text (or image, on the phone) goes onto the clipboard, since each would replace the one before. Older ones are still in the list: tap to copy them. On the phone, older images from the same batch are saved to `Downloads/ClipBridge`.
+- **Image previews** download at most once per image, and only for images up to 3 MB; bigger ones show an icon until you open them.
 - **QR pairing is one-way for now:** Chrome shows the code, the phone scans it. To set up a second computer, type the passphrase there instead.
 - **The very first phone scan** needs Google Play Services (already on almost every phone) — it may briefly download its scanner module the first time it's used.
 
@@ -142,15 +154,29 @@ Everything above uses one already-configured, shared ClipBridge project — you 
 | What | Value |
 |---|---|
 | Android package name | `app.clipbridge` |
-| Android SHA-1 fingerprint | `49:31:AA:9F:FF:7F:F3:85:03:19:7D:81:D2:AB:1A:B5:AC:0B:9E:DC` |
+| Android SHA-1 fingerprint | `49:31:AA:9F:FF:7F:F3:85:03:19:7D:81:D2:AB:1A:B5:AC:0B:9E:DC` (changes when the signing key is rotated, see below) |
 | Chrome extension ID | `oklffclikimjimhihbkaoddchdndlhdj` |
 
 The Android SHA-1 stays fixed because every build uses the same signing key — but the keystore itself is never committed to this repo, and its password never appears in any source file. It lives only in:
 
-- **GitHub Actions secrets** (`CLIPBRIDGE_KEYSTORE_BASE64`, `CLIPBRIDGE_KEYSTORE_PASSWORD`, `CLIPBRIDGE_KEY_ALIAS`) — Settings → Secrets and variables → Actions — used by CI to sign release builds.
+- **GitHub Actions secrets** (`CLIPBRIDGE_KEYSTORE_BASE64`, `CLIPBRIDGE_KEYSTORE_PASSWORD`, `CLIPBRIDGE_KEY_ALIAS`, and optionally `CLIPBRIDGE_KEY_PASSWORD` if the key's password differs from the keystore's) — Settings → Secrets and variables → Actions — used by CI to sign release builds.
 - Optionally, a local `android-app/keystore.properties` file (copy it from `keystore.properties.example` and fill in your own values) if you want to build locally. This file is gitignored.
 
 If you fork or copy this project, **generate your own keystore** (`keytool -genkeypair ...`) rather than reusing this one — whoever holds a keystore file plus its password can sign updates that any device already running that app will accept as legitimate.
+
+### Rotating the signing key
+
+An early version of this repository briefly contained a keystore file and its password. Both have been removed from the git history, but anyone who copied the repository before then could still have them, so treat that key as exposed and switch to a new one:
+
+1. Make a new key on your own computer (not in the repo):
+
+   ```bash
+   keytool -genkeypair -v -keystore clipbridge-2026.keystore -alias clipbridge -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+2. Replace the GitHub secrets: `CLIPBRIDGE_KEYSTORE_BASE64` (output of `base64 -w0 clipbridge-2026.keystore`), `CLIPBRIDGE_KEYSTORE_PASSWORD` and `CLIPBRIDGE_KEY_ALIAS`.
+3. Print the new SHA-1 with `keytool -list -v -keystore clipbridge-2026.keystore -alias clipbridge`, add it as an **Android** OAuth client in Google Cloud (same project as the Chrome client), and update the fingerprint in the table above.
+4. Android only installs updates signed with the key a phone already has, so after the switch everyone uninstalls the old app once and installs the new release (their clips stay in Drive; they just set the passphrase again or scan the QR code).
 
 ### Setting up your own Google Cloud project
 
@@ -177,6 +203,24 @@ Both clients must be in the **same project** — that's what lets your phone and
 **Option B — Android Studio.** Open the `android-app` folder, wait for the sync, then **Build → Build Bundle(s) / APK(s) → Build APK(s)**, or run `./gradlew assembleRelease`.
 
 Either way, the release build can't be debugged over USB, so someone with your phone and a cable can't peek inside the app.
+
+### Versions
+
+There is one version number for everything, in the `VERSION` file at the top of the repo. The Android build reads it directly (2.2.0 becomes version code 20200). To release a new version, change `VERSION`, set the same number in `chrome-extension/manifest.json` and in the `<!-- version -->` markers in `README.md`, `index.html` and `privacy.html`, then run `node scripts/check-version.mjs`; CI runs the same check and fails if anything disagrees. A push to `main` with a new version publishes release `v2.2.0` (etc.) with both `ClipBridge.apk` and `ClipBridge-Chrome-Extension.zip`.
+
+### Tests
+
+Both apps share one encryption format, and they must produce **byte-identical** output. `protocol/test-vectors.json` holds known inputs and outputs (keys from passphrases, encrypted content and headers, QR pairing codes, sync pacing, pruning, file and device names). Both sides are tested against that same file, so any difference fails the build:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+```bash
+cd android-app && ./gradlew :core:test :app:testDebugUnitTest
+```
+
+The Android tests need no phone or emulator. They also save screenshots of the main screens (light, dark, phone, tablet) to `android-app/app/build/screenshots`. Only regenerate the vectors (`node tests/gen-vectors.mjs`) when you change the format on purpose, and make the Android side pass again in the same change.
 
 ---
 

@@ -1,80 +1,185 @@
-name: Build Android APK
+name: Test, build and release
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
+# Least privilege: everything is read-only except the release job, which alone may write.
 permissions:
-  contents: write
+  contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Third-party actions are pinned to exact commits (tag in the comment), so a moved or
+# compromised tag can't change what runs here with access to the signing key.
 jobs:
-  build:
+  checks:
+    name: Versions and parity tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: One version everywhere
+        run: node scripts/check-version.mjs
+      - name: Chrome extension matches the shared test vectors
+        run: node --test tests/*.test.mjs
+      - name: Extension scripts parse
+        run: for f in chrome-extension/*.js; do node --check "$f"; done
+
+  android:
+    name: Android app
+    needs: checks
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: android-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - name: Gradle wrapper is the genuine one
+        uses: gradle/actions/wrapper-validation@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4.4.1
+
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
           packages: 'platform-tools'
 
+      - name: Tests (shared core parity, UI screenshots) and lint
+        run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest :app:lintDebug
+
+      - name: Keep the screenshots and reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-test-reports
+          path: |
+            android-app/app/build/screenshots
+            android-app/app/build/reports
+            android-app/core/build/reports
+          if-no-files-found: ignore
+
+      # Pull requests from forks get no secrets: they stop after the tests.
       - name: Decode signing key
+        id: key
         env:
           CLIPBRIDGE_KEYSTORE_BASE64: ${{ secrets.CLIPBRIDGE_KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$CLIPBRIDGE_KEYSTORE_BASE64" ]; then echo "available=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          umask 077
           echo "$CLIPBRIDGE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
-      - name: Compute next release version
-        id: ver
-        run: |
-          git fetch --tags --force
-          last=$(git tag --list 'v0.*' | sed 's/^v0\.//' | sort -n | tail -1)
-          last=${last:-1}
-          next=$((last + 1))
-          echo "tag=v0.$next" >> "$GITHUB_OUTPUT"
-          echo "title=ClipBridge 0.$next" >> "$GITHUB_OUTPUT"
-
-      - name: Build APK
+      - name: Build signed APK
+        if: steps.key.outputs.available == 'true'
         env:
           CLIPBRIDGE_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
           CLIPBRIDGE_KEYSTORE_PASSWORD: ${{ secrets.CLIPBRIDGE_KEYSTORE_PASSWORD }}
+          CLIPBRIDGE_KEY_PASSWORD: ${{ secrets.CLIPBRIDGE_KEY_PASSWORD }}
           CLIPBRIDGE_KEY_ALIAS: ${{ secrets.CLIPBRIDGE_KEY_ALIAS }}
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew --no-daemon assembleRelease
 
-      - name: Rename APK for distribution
-        run: |
-          mkdir -p app/build/outputs/apk/release/dist
-          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/dist/ClipBridge.apk
+      - name: Remove signing key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.keystore"
 
-      - uses: actions/upload-artifact@v4
+      - name: Check the signature and name the APK
+        if: steps.key.outputs.available == 'true'
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$apksigner" verify --verbose --print-certs "$apk" | grep -E "Verified using|Signer #1 certificate (DN|SHA-256)"
+          mkdir -p dist && cp "$apk" dist/ClipBridge.apk && sha256sum dist/ClipBridge.apk
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.key.outputs.available == 'true'
         with:
           name: ClipBridge-apk
-          path: android-app/app/build/outputs/apk/release/dist/ClipBridge.apk
+          path: android-app/dist/ClipBridge.apk
+          if-no-files-found: error
 
-      - name: Publish GitHub Release
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+  extension:
+    name: Chrome extension zip
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Package (reproducible)
+        run: ./scripts/package-extension.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ClipBridge-Chrome-Extension
+          path: dist/ClipBridge-Chrome-Extension.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [android, extension]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Is this version new?
+        id: ver
+        env:
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="$(tr -d '[:space:]' < VERSION)"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" --repo "$REPO" > /dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"; echo "v$v is already released; bump VERSION to publish a new one."
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.ver.outputs.new == 'true'
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        if: steps.ver.outputs.new == 'true'
+        run: |
+          test -f dist/ClipBridge.apk && test -f dist/ClipBridge-Chrome-Extension.zip
+          (cd dist && sha256sum ClipBridge.apk ClipBridge-Chrome-Extension.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        if: steps.ver.outputs.new == 'true'
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.title }}
+          target_commitish: ${{ github.sha }}
+          name: ClipBridge ${{ steps.ver.outputs.tag }}
           body: |
-            Automated build from commit ${{ github.sha }}.
-            Download ClipBridge.apk below and install it on your Android phone.
+            Built from commit ${{ github.sha }}.
 
-            If you already have an older ClipBridge installed, you may need to uninstall it
-            first if this build was signed with a different key than the one you have.
-          files: android-app/app/build/outputs/apk/release/dist/ClipBridge.apk
+            - **Phone:** download `ClipBridge.apk` below and open it on your Android phone.
+            - **Computer:** download `ClipBridge-Chrome-Extension.zip`, unzip it, and load it in `chrome://extensions` (Developer mode → Load unpacked).
+
+            `SHA256SUMS.txt` lists each file's checksum, so you can confirm your download is the genuine one.
+          files: |
+            dist/ClipBridge.apk
+            dist/ClipBridge-Chrome-Extension.zip
+            dist/SHA256SUMS.txt
           make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
