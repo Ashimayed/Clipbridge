@@ -1,6 +1,7 @@
 import * as D from './drive.js';
 import * as C from './crypto.js';
-import { pollIntervalMs, jittered, normalizeMode, redact, DEFAULT_MODE, MAX_PINS } from './logic.js';
+import * as S from './store.js';
+import { pollIntervalMs, jittered, normalizeMode, redact, cleanDeviceName, DEFAULT_MODE, MAX_PINS } from './logic.js';
 
 const OFFSCREEN_URL = 'offscreen.html';
 
@@ -47,6 +48,7 @@ async function getLog(st) {
   const header = [
     'ClipBridge debug log',
     `Chrome extension v${chrome.runtime.getManifest().version}`,
+    `Chrome ${/Chrome\/([\d.]+)/.exec(navigator.userAgent)?.[1] || '?'}`,
     `Sync mode: ${st.syncMode}, auto-send: ${st.autoSend ? 'on' : 'off'}`,
     '----------',
   ];
@@ -137,7 +139,15 @@ async function signOut() {
   try { await D.dropToken(await D.getToken(false)); } catch { /* already signed out */ }
   // Forget the key too: someone else signing in on this PC must not inherit it.
   await setState({ authOk: false, email: null, seenIds: null, lastHash: null, keyB64: null, keyCheck: null });
+  await forgetLocalCopies();
   await setBadge();
+}
+
+/** Decrypted leftovers on this computer: image previews and any files still waiting to send. */
+async function forgetLocalCopies() {
+  await S.clearThumbs().catch(() => {});
+  await S.clearQueue().catch(() => {});
+  await chrome.storage.session.remove('transfers').catch(() => {});
 }
 
 // ================================================================ receiving
@@ -157,7 +167,13 @@ async function scheduleNextPoll(failCount) {
   await setState({ nextPollAt: Date.now() + Math.max(normal, afterErrors) });
 }
 
-/** The actual Drive round-trip. Returns normally (including "nothing new") or throws. */
+/**
+ * The actual Drive round-trip. Returns normally (including "nothing new") or throws.
+ *
+ * Everything new from another device is handled, oldest first: every file and image is saved
+ * (so sending five photos delivers five photos), but only the NEWEST text goes on the
+ * clipboard, since each text would just overwrite the one before it. Older texts stay in history.
+ */
 async function pollOnce(st) {
   const key = await D.getKey();
   const { deviceId } = await D.identity();
@@ -167,29 +183,41 @@ async function pollOnce(st) {
   if (!st.seenIds) { await setState({ seenIds: clips.map((c) => c.id) }); return; } // first run: replay nothing
   const fresh = clips.filter((c) => !st.seenIds.includes(c.id));
   if (!fresh.length) return;
-  const allSeen = [...fresh.map((c) => c.id), ...st.seenIds].slice(0, 60);
 
-  const newest = clips[0];
-  if (newest.origin === deviceId || !fresh.some((c) => c.id === newest.id)) { await setState({ seenIds: allSeen }); return; }
-  const opened = await D.openClip(key, newest);
-  if (!opened) {
-    await setState({ seenIds: allSeen });
-    await pushLog("Couldn't unlock an incoming clip: passphrase mismatch");
-    await notify(`bad-${newest.id}`, "A clip couldn't be unlocked",
-      'Your devices seem to use different passphrases. Compare the key check codes in ClipBridge settings.', true);
-    return;
+  const retry = new Set(); // ids to try again next round (offline mid-download)
+  const incoming = [];
+  for (const c of [...fresh].reverse()) { // oldest first
+    if (c.origin === deviceId) continue;
+    const opened = await D.openClip(key, c);
+    if (!opened) {
+      await pushLog("Couldn't unlock an incoming clip: passphrase mismatch");
+      await notify(`bad-${c.id}`, "A clip couldn't be unlocked",
+        'Your devices seem to use different passphrases. Compare the key check codes in ClipBridge settings.', true);
+      continue;
+    }
+    incoming.push({ c, opened });
   }
-  try {
-    await applyClip(key, newest, opened);
-    await setState({ seenIds: allSeen });
-    await pushLog(`Received a clip from ${opened.header.device || 'another device'}`);
-    await touchNow();
-  } catch (e) {
-    // Offline mid-download: leave it unseen so the next round tries again.
-    const retry = e instanceof D.TransientError || e instanceof D.AuthError;
-    await setState({ seenIds: retry ? allSeen.filter((id) => id !== newest.id) : allSeen });
-    throw e;
+  const isClipboardText = ({ opened: { header: h } }) => h.kind === 'text' && h.size <= D.MAX_CLIPBOARD_TEXT;
+  const newestText = incoming.filter(isClipboardText).pop();
+
+  let failure = null;
+  for (const item of incoming) {
+    if (isClipboardText(item) && item !== newestText) continue; // superseded by a newer text
+    try {
+      await applyClip(key, item.c, item.opened);
+      await pushLog(`Received a ${item.opened.header.kind} from ${item.opened.header.device || 'another device'}`);
+      await touchNow();
+    } catch (e) {
+      if (e instanceof D.TransientError || e instanceof D.AuthError) retry.add(item.c.id);
+      else if (e instanceof C.DecryptError) await pushLog('Rejected an incoming clip: it was altered or used another passphrase');
+      else await pushLog(`Couldn't apply an incoming clip: ${e?.message || e}`);
+      failure ??= e;
+      if (e instanceof D.AuthError) break; // nothing else will work until you sign in again
+    }
   }
+  const allSeen = [...fresh.map((c) => c.id), ...st.seenIds].filter((id) => !retry.has(id)).slice(0, 60);
+  await setState({ seenIds: allSeen });
+  if (failure) throw failure;
 }
 
 let polling = false;
@@ -221,20 +249,20 @@ async function pollDrive() {
   }
 }
 
-async function applyClip(key, clip, { prefix, header }) {
+async function applyClip(key, clip, { prefix, header }, { quiet = false } = {}) {
   const from = header.device || 'your phone';
   if (header.kind === 'text' && header.size <= D.MAX_CLIPBOARD_TEXT) {
     const text = await D.readText(key, clip, { prefix, header });
     await setState({ lastHash: await D.sha256Text(text) });
     await toOffscreen({ type: 'write-text', text });
-    await notify(`in-${clip.id}`, `From ${from}, ready to paste`, text.slice(0, 180));
+    if (!quiet) await notify(`in-${clip.id}`, `From ${from}, ready to paste`, text.slice(0, 180));
     return;
   }
   // Images, files and huge text go to Downloads/ClipBridge, decrypted in the offscreen page.
   const st = await getState();
   const r = await toOffscreen({
     type: 'decrypt-to-url',
-    url: `${D.DRIVE}/files/${clip.id}?alt=media`,
+    url: `${D.DRIVE}/files/${D.checkId(clip.id)}?alt=media`,
     token: await D.getToken(false),
     keyB64: st.keyB64,
     prefixB64: C.b64(prefix),
@@ -250,7 +278,18 @@ async function applyClip(key, clip, { prefix, header }) {
   const keep = Object.fromEntries(Object.entries(dlMap).slice(-20)); // bounded
   await chrome.storage.session.set({ dlMap: { ...keep, [nid]: downloadId } });
   const what = header.kind === 'image' ? 'Image' : name;
-  await notify(nid, `From ${from}`, `${what} saved to Downloads/ClipBridge. Click to show it.`);
+  if (!quiet) await notify(nid, `From ${from}`, `${what} saved to Downloads/ClipBridge. Click to show it.`);
+}
+
+/** "Save" on a file in the popup's history. Runs here so a big download survives the popup closing. */
+async function saveFromHistory(id) {
+  D.checkId(id);
+  const key = await D.getKey();
+  const clip = (await D.listClips(D.MAX_VISIBLE + 20)).find((c) => c.id === id);
+  if (!clip) throw new D.PermanentError('That clip no longer exists', 404);
+  const opened = await D.openClip(key, clip);
+  if (!opened) throw new C.DecryptError("Can't unlock this clip");
+  await applyClip(key, clip, opened, { quiet: true });
 }
 
 // ================================================================ sending
@@ -297,6 +336,67 @@ function sendLocalImage(dataUrl) {
   });
 }
 
+/** Text typed into the popup. An explicit choice: sends even if it's identical to the last clip. */
+function sendTypedText(text) {
+  return new Promise((resolve, reject) => enqueue(async () => {
+    try {
+      const st = await getState();
+      if (!st.authOk) throw new D.AuthError('Sign in first');
+      if (!text.trim()) throw new Error('Nothing to send');
+      const hash = await D.sha256Text(text);
+      await D.sendText(await D.getKey(), text, await D.identity(), hash);
+      await setState({ lastHash: hash }); // copying the same text next won't send it twice
+      await pushLog('Sent typed text');
+      await touchNow();
+      resolve();
+    } catch (e) {
+      if (e instanceof D.AuthError) await markSignedOut(e.message);
+      reject(e);
+    }
+  }));
+}
+
+/** Files the popup put in the outbox: the offscreen page encrypts and uploads them one by one. */
+async function sendQueuedFiles(ids) {
+  const st = await getState();
+  if (!st.authOk) throw new D.AuthError('Sign in first');
+  if (!st.keyB64) throw new D.NoKeyError();
+  if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string' && id.length <= 64)) throw new Error('Bad request');
+  await touchNow();
+  return toOffscreen({ type: 'upload', ids, keyB64: st.keyB64, who: await D.identity() });
+}
+
+/** Progress reports from the offscreen page, kept so a reopened popup can show them again. */
+const transferWrites = { chain: Promise.resolve() };
+function recordProgress(p) {
+  transferWrites.chain = transferWrites.chain.then(async () => {
+    const { transfers = {} } = await chrome.storage.session.get('transfers');
+    if (p.state === 'sending') {
+      transfers[p.id] = { name: p.name, size: p.size, sent: p.sent, total: p.total, at: Date.now() };
+    } else {
+      delete transfers[p.id];
+    }
+    await chrome.storage.session.set({ transfers });
+    if (p.state === 'done') {
+      await pushLog(`Sent a file (${Math.round((p.size || 0) / 1024)} KB)`);
+      await touchNow();
+      if (p.size >= 5 * 1024 * 1024) await notify(`sent-${p.id}`, 'Sent to your other devices', p.name);
+    } else if (p.state === 'failed') {
+      await pushLog(`File not sent: ${p.error}`);
+      if (p.auth) await markSignedOut(p.error);
+      else await notify(`fail-${p.id}`, `${p.name} not sent`, p.error || 'Check your connection');
+    }
+  }).catch((e) => console.warn('progress:', e));
+}
+
+async function deleteOne(id) {
+  await D.deleteClip(D.checkId(id));
+  const st = await getState();
+  if (st.seenIds) await setState({ seenIds: st.seenIds.filter((x) => x !== id) });
+  await pushLog('Deleted a clip');
+  await touchNow();
+}
+
 /** Enforces the pin cap, then flips the flag. Errors surface to whoever asked (usually the popup). */
 async function pinClip(id, pinned) {
   if (pinned) {
@@ -311,8 +411,12 @@ async function pinClip(id, pinned) {
 // ================================================================ messages
 // Only our own extension pages can talk to us (no externally_connectable, and a sender check).
 
+const OFFSCREEN_PAGE = chrome.runtime.getURL(OFFSCREEN_URL);
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || msg?.target !== 'bg') return;
+  if (sender.id !== chrome.runtime.id) return;
+  if (msg?.target === 'progress' && sender.url === OFFSCREEN_PAGE) { recordProgress(msg); return; }
+  if (msg?.target !== 'bg') return;
   const reply = (p) => { p.then((v) => sendResponse(v ?? { ok: true }), (e) => sendResponse({ ok: false, error: e?.message || String(e) })); return true; };
   switch (msg.type) {
     case 'tick': pollDrive(); return;
@@ -323,23 +427,41 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     case 'sign-in': return reply(signIn().then((email) => ({ ok: true, email })));
     case 'sign-out': return reply(signOut());
-    case 'send-text': return reply(sendLocalText(msg.text, true));
+    case 'send-text': return reply(sendTypedText(String(msg.text ?? '')));
+    case 'send-files': return reply(sendQueuedFiles(msg.ids));
+    case 'delete-clip': return reply(deleteOne(msg.id));
+    case 'save-clip': return reply(saveFromHistory(msg.id));
+    case 'set-device-name': {
+      const name = cleanDeviceName(msg.name);
+      return reply(setState({ deviceName: name }).then(() => pushLog('Device name changed')).then(() => ({ ok: true, name })));
+    }
+    case 'get-token':
+      // Only the offscreen page (which does the uploads) ever gets a token from here.
+      if (sender.url !== OFFSCREEN_PAGE) return;
+      return reply(D.getToken(false).then((token) => ({ ok: true, token })));
+    case 'drop-token':
+      if (sender.url !== OFFSCREEN_PAGE || typeof msg.token !== 'string') return;
+      return reply(chrome.identity.removeCachedAuthToken({ token: msg.token }));
     case 'mark-hash': return reply(setState({ lastHash: msg.hash }));
     case 'suppress-image': return reply(setState({ suppressImageUntil: Date.now() + 10000 }));
     case 'save-key':
       return reply(setState({ keyB64: msg.keyB64, keyCheck: msg.keyCheck, failCount: 0, nextPollAt: 0, seenIds: null })
-        .then(setBadge).then(() => pushLog('Passphrase saved')));
+        .then(() => S.clearThumbs().catch(() => {})).then(setBadge).then(() => pushLog('Passphrase saved')));
     case 'set-auto-send': return reply(setState({ autoSend: !!msg.on }).then(setBadge));
     case 'set-sync-mode': return reply(setState({ syncMode: normalizeMode(msg.mode) }));
     case 'set-pinned': return reply(pinClip(msg.id, !!msg.pinned));
     case 'get-debug-log': return reply(getState().then((s) => getLog(s)).then((text) => ({ ok: true, text })));
     case 'delete-all':
-      return reply(D.deleteAll().then(() => setState({ seenIds: [], lastHash: null })));
+      return reply(D.deleteAll().then(() => setState({ seenIds: [], lastHash: null })).then(() => S.clearThumbs().catch(() => {})));
     case 'status':
       return reply((async () => {
         await touchNow();
         const s = await getState();
-        return { authOk: s.authOk, email: s.email, hasKey: !!s.keyB64, keyCheck: s.keyCheck, autoSend: s.autoSend, syncMode: s.syncMode };
+        const { deviceName = '' } = await chrome.storage.local.get('deviceName');
+        return {
+          authOk: s.authOk, email: s.email, hasKey: !!s.keyB64, keyCheck: s.keyCheck, autoSend: s.autoSend, syncMode: s.syncMode,
+          deviceName, defaultDeviceName: D.defaultDeviceLabel(), version: chrome.runtime.getManifest().version,
+        };
       })());
   }
 });
@@ -371,5 +493,6 @@ async function boot() {
 }
 
 chrome.runtime.onInstalled.addListener(() => { setupMenus(); boot(); });
-chrome.runtime.onStartup.addListener(boot);
+// A browser restart cancels any upload that was running: drop the unencrypted copies it left.
+chrome.runtime.onStartup.addListener(() => { S.clearQueue().catch(() => {}); chrome.storage.session.remove('transfers'); boot(); });
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'keepalive') ensureOffscreen(); });

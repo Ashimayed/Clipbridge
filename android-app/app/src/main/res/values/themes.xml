@@ -4,10 +4,7 @@
         <item name="android:windowBackground">@color/ground</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:statusBarColor">@color/ground</item>
-        <item name="android:navigationBarColor">@color/ground</item>
-        <item name="android:windowLightStatusBar">@bool/light_bars</item>
-        <item name="android:windowLightNavigationBar">@bool/light_bars</item>
+        <!-- Bars are transparent and drawn over (edge to edge, see Ui.edgeToEdge); icons follow light/dark mode. -->
         <item name="android:fontFamily">@font/onest</item>
         <item name="android:textColor">@color/ink</item>
         <item name="android:textColorPrimary">@color/ink</item>

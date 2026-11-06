@@ -1,6 +1,8 @@
-// Shared logic that must behave EXACTLY like the Android app's Kotlin versions:
-//   PollPolicy.kt (pollIntervalMs), Redact.kt (redact), PrunePlan.kt (planPrune), Pairing.kt (build/parsePairing).
-// tests/parity checks run both sides against the same inputs.
+// Shared logic that must behave EXACTLY like the Android app's Kotlin versions (android-app/core):
+//   PollPolicy.kt (pollIntervalMs), Redact.kt (redact), PrunePlan.kt (planPrune),
+//   Pairing.kt (build/parsePairing), Names.kt (safeName, cleanDeviceName).
+// Both sides are checked against the same protocol/test-vectors.json (tests/parity.test.mjs here,
+// CoreParityTest.kt on Android), so any difference fails the build.
 
 import { b64, unb64, keyCheck } from './crypto.js';
 
@@ -60,6 +62,31 @@ export function planPrune(items, keep) {
     if (unpinned > keep) out.push(c.id);
   }
   return out;
+}
+
+// ------------------------------------------------------------------ names
+
+const RE_UNSAFE_FILE = /[\\/:*?"<>|\u0000-\u001f]/g;
+const RE_CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
+export const MAX_DEVICE_NAME = 40;
+
+/** A file name that is safe to save anywhere: no path separators, no ".." tricks, at most 120 chars. */
+export function safeName(name) {
+  const n = String(name || 'clip').replace(RE_UNSAFE_FILE, '_').trim().slice(0, 120);
+  return !n || /^\.+$/.test(n) ? 'clip' : n;
+}
+
+/**
+ * A device name typed by the user ("Work laptop"): control characters removed, runs of white
+ * space collapsed, trimmed, at most MAX_DEVICE_NAME characters. '' means "use the default".
+ * It only ever travels inside the encrypted header, so Drive never sees it.
+ */
+export function cleanDeviceName(raw) {
+  const t = String(raw ?? '').replace(RE_CONTROL, ' ').replace(/\s+/g, ' ').trim();
+  if (t.length <= MAX_DEVICE_NAME) return t;
+  const c = t.charCodeAt(MAX_DEVICE_NAME - 1);
+  const end = c >= 0xd800 && c <= 0xdbff ? MAX_DEVICE_NAME - 1 : MAX_DEVICE_NAME; // never split a surrogate pair
+  return t.slice(0, end).trim();
 }
 
 // ------------------------------------------------------------------ QR pairing

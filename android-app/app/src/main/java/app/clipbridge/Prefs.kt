@@ -14,8 +14,22 @@ class Prefs(context: Context) {
             sp.edit().putString(KEY_DEVICE_ID, it).apply()
         }
 
+    /** What this phone is called on your other devices: your own name for it, or the model. */
     val deviceLabel: String
-        get() = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        get() = deviceName.ifEmpty { defaultDeviceLabel }
+
+    /** e.g. "Google Pixel 9". Some makers repeat their name in the model; don't say it twice. */
+    val defaultDeviceLabel: String
+        get() {
+            val maker = Build.MANUFACTURER.orEmpty().replaceFirstChar { it.uppercase() }
+            val model = Build.MODEL.orEmpty()
+            return (if (model.startsWith(maker, ignoreCase = true)) model else "$maker $model").trim().ifEmpty { "Android phone" }
+        }
+
+    /** The name you gave this phone ("" = use the model). Cleaned exactly like Chrome cleans its own. */
+    var deviceName: String
+        get() = Names.cleanDeviceName(sp.getString(KEY_DEVICE_NAME, "") ?: "")
+        set(v) = sp.edit().putString(KEY_DEVICE_NAME, Names.cleanDeviceName(v)).apply()
 
     var email: String?
         get() = sp.getString(KEY_EMAIL, null)
@@ -47,7 +61,7 @@ class Prefs(context: Context) {
     fun clearAccount() {
         sp.edit().remove(KEY_EMAIL).remove(KEY_SEEN).remove(KEY_LAST_HASH)
             .putBoolean(KEY_SYNC, false).apply()
-        // syncMode is a device preference, not account data: it survives sign-out on purpose.
+        // syncMode and deviceName are device preferences, not account data: they survive sign-out on purpose.
     }
 
     private companion object {
@@ -57,5 +71,6 @@ class Prefs(context: Context) {
         const val KEY_SEEN = "seen_ids"
         const val KEY_LAST_HASH = "last_hash"
         const val KEY_SYNC_MODE = "sync_mode"
+        const val KEY_DEVICE_NAME = "device_name"
     }
 }

@@ -34,6 +34,9 @@ class TransientException(msg: String) : IOException(msg)
 /** Retrying won't help: Drive full, clip deleted, bad request. */
 class PermanentException(msg: String, val code: Int) : IOException(msg)
 
+/** Upload progress: [sent] of [total] ciphertext bytes. Called from the upload thread. */
+fun interface Progress { fun update(sent: Long, total: Long) }
+
 class DriveApi {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -77,7 +80,7 @@ class DriveApi {
             "appProperties",
             JSONObject().apply { if (pinned) put("pinned", "1") else put("pinned", JSONObject.NULL) }
         )
-        val req = Request.Builder().url("$BASE/files/$id?fields=id")
+        val req = Request.Builder().url("$BASE/files/${checkId(id)}?fields=id")
             .header(AUTH, "Bearer $token")
             .patch(body.toString().toRequestBody(JSON))
             .build()
@@ -89,8 +92,8 @@ class DriveApi {
         return JSONObject(body).optJSONObject("user")?.optString("emailAddress")?.ifBlank { null }
     }
 
-    /** Already-encrypted small clip. Drive only sees a random name, a generic type, our device id, ciphertext. */
-    fun uploadSmall(token: String, cipher: ByteArray, description: String, origin: String) {
+    /** Already-encrypted small clip. Drive only sees a random name, a generic type, our device id, ciphertext. Returns the new id. */
+    fun uploadSmall(token: String, cipher: ByteArray, description: String, origin: String): String? {
         val multipart = MultipartBody.Builder()
             .setType("multipart/related".toMediaType())
             .addPart(meta(description, origin).toString().toRequestBody(JSON))
@@ -98,11 +101,19 @@ class DriveApi {
             .build()
         val req = Request.Builder().url("$UPLOAD/files?uploadType=multipart&fields=id")
             .header(AUTH, "Bearer $token").post(multipart).build()
-        execute(http, req) { }
+        return execute(http, req) { idFrom(it) }
     }
 
-    /** Streams [file] through encryption straight into Drive: constant memory for any size. */
-    fun uploadEncryptedFile(token: String, file: File, key: ByteArray, prefix: ByteArray, description: String, origin: String) {
+    /**
+     * Streams [file] through encryption straight into Drive: constant memory for any size.
+     * If the connection drops, asks Drive how much arrived and sends only the rest (Google's
+     * documented resumable-upload recipe), instead of starting the whole file again.
+     * Returns the new clip's Drive id.
+     */
+    fun uploadEncryptedFile(
+        token: String, file: File, key: ByteArray, prefix: ByteArray, description: String, origin: String,
+        progress: Progress? = null,
+    ): String? {
         val plainSize = file.length()
         val cipherSize = Crypto.cipherLength(plainSize)
         val start = Request.Builder()
@@ -114,26 +125,68 @@ class DriveApi {
             .build()
         val session = execute(http, start) { it.header("Location") }
             ?: throw TransientException("Drive did not start the upload")
-        val body = object : RequestBody() {
-            override fun contentType(): MediaType = OCTET
-            override fun contentLength(): Long = cipherSize
-            override fun writeTo(sink: BufferedSink) {
-                file.inputStream().use { Crypto.encrypt(key, prefix, it, plainSize, sink.outputStream()) }
+
+        var offset = 0L
+        var attempt = 0
+        while (true) {
+            val from = offset
+            val body = object : RequestBody() {
+                override fun contentType(): MediaType = OCTET
+                override fun contentLength(): Long = cipherSize - from
+                override fun isOneShot() = true // we resume ourselves, from where Drive stopped
+                override fun writeTo(sink: BufferedSink) {
+                    val out = CountingStream(sink.outputStream(), from, cipherSize, progress)
+                    Crypto.encryptFrom(key, prefix, plainSize, from, { p -> openAt(file, p) }, out)
+                    out.flush()
+                    if (file.length() != plainSize) throw IOException("File changed while sending")
+                }
+            }
+            val put = Request.Builder().url(session).header(AUTH, "Bearer $token")
+                .header("Content-Range", if (from < cipherSize) "bytes $from-${cipherSize - 1}/$cipherSize" else "bytes */$cipherSize")
+                .put(body).build()
+            try {
+                return execute(http, put) { idFrom(it) }
+            } catch (e: TransientException) {
+                if (++attempt > 4) throw e
+                Thread.sleep(2_000L shl (attempt - 1))
+                // null: Drive forgot the session, so the caller starts the whole upload over.
+                offset = uploadedSoFar(session, token, cipherSize) ?: throw e
             }
         }
-        execute(http, Request.Builder().url(session).put(body).build()) { }
     }
+
+    /** Bytes Drive already has for a resumable upload (or the finished upload's size); null if unknown. */
+    private fun uploadedSoFar(session: String, token: String, total: Long): Long? {
+        val req = Request.Builder().url(session).header(AUTH, "Bearer $token")
+            .header("Content-Range", "bytes */$total").put(ByteArray(0).toRequestBody(null)).build()
+        val resp = try { quick.newCall(req).execute() } catch (e: IOException) { return null }
+        resp.use {
+            if (it.code == 200 || it.code == 201) return total
+            if (it.code != 308) return null
+            val range = it.header("Range") ?: return 0L
+            return Regex("bytes=0-(\\d+)").find(range)?.groupValues?.get(1)?.toLongOrNull()?.plus(1) ?: 0L
+        }
+    }
+
+    private fun openAt(file: File, plainOffset: Long): InputStream {
+        val raf = java.io.RandomAccessFile(file, "r")
+        raf.seek(plainOffset)
+        return java.nio.channels.Channels.newInputStream(raf.channel).buffered(Crypto.CHUNK)
+    }
+
+    private fun idFrom(resp: Response): String? =
+        runCatching { JSONObject(resp.body!!.string()).optString("id").ifBlank { null } }.getOrNull()
 
     /** Streams the (encrypted) content into [sink]. */
     fun download(token: String, id: String, sink: (InputStream) -> Unit) {
-        execute(http, get("$BASE/files/$id?alt=media", token)) { resp -> resp.body!!.byteStream().use(sink) }
+        execute(http, get("$BASE/files/${checkId(id)}?alt=media", token)) { resp -> resp.body!!.byteStream().use(sink) }
     }
 
     fun downloadBytes(token: String, id: String): ByteArray =
-        execute(http, get("$BASE/files/$id?alt=media", token)) { it.body!!.bytes() }
+        execute(http, get("$BASE/files/${checkId(id)}?alt=media", token)) { it.body!!.bytes() }
 
     fun delete(token: String, id: String) {
-        val req = Request.Builder().url("$BASE/files/$id").header(AUTH, "Bearer $token").delete().build()
+        val req = Request.Builder().url("$BASE/files/${checkId(id)}").header(AUTH, "Bearer $token").delete().build()
         val resp = try { http.newCall(req).execute() } catch (e: IOException) {
             throw TransientException("No connection")
         }
@@ -192,10 +245,31 @@ class DriveApi {
 
     companion object {
         const val MAX_CLIPS = 10
+        private val ID = Regex("[A-Za-z0-9_-]{10,200}")
+
+        /** Drive ids are short base64url-like strings; anything else must never reach a URL. */
+        fun checkId(id: String): String {
+            if (!ID.matches(id)) throw PermanentException("Not a valid clip id", 400)
+            return id
+        }
         private const val BASE = "https://www.googleapis.com/drive/v3"
         private const val UPLOAD = "https://www.googleapis.com/upload/drive/v3"
         private const val AUTH = "Authorization"
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val OCTET = "application/octet-stream".toMediaType()
     }
+}
+
+/** Counts bytes on their way to Drive, for the progress bar. Reports at most ~4 times a second. */
+private class CountingStream(
+    private val out: java.io.OutputStream, private var sent: Long, private val total: Long, private val progress: Progress?,
+) : java.io.FilterOutputStream(out) {
+    private var lastReport = 0L
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        out.write(b, off, len)
+        sent += len
+        val now = System.currentTimeMillis()
+        if (progress != null && (now - lastReport >= 250 || sent >= total)) { lastReport = now; progress.update(sent, total) }
+    }
+    override fun write(b: Int) { out.write(b); sent++ }
 }

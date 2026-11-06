@@ -40,9 +40,12 @@ object Notifier {
     private const val CH_STATUS = "status"
     private const val CH_INCOMING = "incoming"
     private const val CH_ALERTS = "alerts"
+    private const val CH_TRANSFERS = "transfers"
     const val ID_STATUS = 1
     private const val ID_INCOMING = 2
     private const val ID_ALERT = 3
+    private const val ID_FILE_BASE = 1000      // one notification per received file
+    private const val ID_PROGRESS_BASE = 5000  // one per running upload
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -61,6 +64,8 @@ object Notifier {
                     "Silent notice that something from another device is ready to paste"),
                 ch(CH_ALERTS, "Problems", NotificationManager.IMPORTANCE_LOW,
                     "Sign-in needed or a clip failed to send"),
+                ch(CH_TRANSFERS, "Sending files", NotificationManager.IMPORTANCE_LOW,
+                    "Progress of large files (5 MB and up) on their way to your other devices"),
             )
         )
     }
@@ -83,25 +88,57 @@ object Notifier {
             .addAction(0, "Send clipboard", activityIntent(ctx, CaptureActivity::class.java, 11))
             .build()
 
-    fun incoming(ctx: Context, from: String, preview: String, openUri: Uri?, mime: String?) {
+    /**
+     * A silent notice that something arrived. [isText] = it went on the clipboard (one shared
+     * notice that each new clip replaces); files each get their own, so every one can be opened.
+     * On the lock screen only "New clip" shows, never the content.
+     */
+    fun incoming(ctx: Context, clipId: String, from: String, preview: String, openUri: Uri?, mime: String?, isText: Boolean = false) {
+        val nid = if (isText) ID_INCOMING else ID_FILE_BASE + (clipId.hashCode() and 0x7fffffff) % 1000
         val tap = if (openUri != null) {
             val view = Intent(Intent.ACTION_VIEW).setDataAndType(openUri, mime)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            PendingIntent.getActivity(ctx, 20, view,
+            PendingIntent.getActivity(ctx, nid, view,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         } else activityIntent(ctx, MainActivity::class.java, 21)
-        post(ctx, ID_INCOMING,
+        val title = if (from.isBlank()) "Clip ready" else "From $from"
+        val public = NotificationCompat.Builder(ctx, CH_INCOMING)
+            .setSmallIcon(R.drawable.ic_notif)
+            .setContentTitle("New clip from ClipBridge")
+            .build()
+        post(ctx, nid,
             NotificationCompat.Builder(ctx, CH_INCOMING)
                 .setSmallIcon(R.drawable.ic_notif)
-                .setContentTitle(if (from.isBlank()) "Clip ready to paste" else "From $from, ready to paste")
+                .setContentTitle(title)
                 .setContentText(preview)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(preview))
                 .setSilent(true)
                 .setAutoCancel(true)
-                .setTimeoutAfter(5 * 60 * 1000L)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPublicVersion(public)
+                .setTimeoutAfter(if (isText) 5 * 60 * 1000L else 60 * 60 * 1000L)
                 .setContentIntent(tap)
                 .build())
     }
+
+    /** Ongoing, silent progress for a big upload. Updated about once a second at most. */
+    fun progress(ctx: Context, t: Transfer) {
+        post(ctx, ID_PROGRESS_BASE + (t.key.hashCode() and 0x7fffffff) % 1000,
+            NotificationCompat.Builder(ctx, CH_TRANSFERS)
+                .setSmallIcon(R.drawable.ic_notif)
+                .setContentTitle("Sending ${t.name}")
+                .setContentText("${t.percent}%")
+                .setProgress(100, t.percent, t.sent == 0L)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setContentIntent(activityIntent(ctx, MainActivity::class.java, 22))
+                .build())
+    }
+
+    fun cancelProgress(ctx: Context, t: Transfer) =
+        NotificationManagerCompat.from(ctx).cancel(ID_PROGRESS_BASE + (t.key.hashCode() and 0x7fffffff) % 1000)
 
     fun alert(ctx: Context, title: String, text: String) {
         post(ctx, ID_ALERT,

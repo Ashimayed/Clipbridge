@@ -12,4 +12,6 @@
     <color name="danger">#A8261B</color>
     <color name="brand">#2743C7</color>
     <color name="pressed">#1A111521</color>
+    <color name="undo_action">#8FA4FF</color>
+    <color name="swipe_delete">#C8372D</color>
 </resources>

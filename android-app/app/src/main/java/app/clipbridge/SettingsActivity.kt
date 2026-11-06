@@ -12,6 +12,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.InputFilter
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Switch
@@ -26,8 +29,12 @@ class SettingsActivity : ComponentActivity() {
     private val repo get() = app.repo
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Ui.edgeToEdge(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        Ui.padForSystemBars(findViewById(R.id.settingsRoot))
+        findViewById<TextView>(R.id.versionText).text = "ClipBridge ${BuildConfig.VERSION_NAME}"
+        findViewById<LinearLayout>(R.id.rowDeviceName).setOnClickListener { editDeviceName() }
         Ui.constrainWidth(this, findViewById<LinearLayout>(R.id.column), 560)
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
 
@@ -69,6 +76,7 @@ class SettingsActivity : ComponentActivity() {
             confirm("Sign out?", "This phone stops syncing and forgets its passphrase. Your other devices aren't affected.", "Sign out") {
                 SyncService.stop(this)
                 Auth.forget()
+                repo.forgetLocalCopies()
                 repo.vault.clear()
                 prefs.clearAccount()
                 startActivity(Intent(this, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
@@ -82,9 +90,33 @@ class SettingsActivity : ComponentActivity() {
         findViewById<TextView>(R.id.rowKeyValue).text = repo.vault.keyCheck ?: "Not set"
         findViewById<TextView>(R.id.rowEmailTitle).text = prefs.email ?: ""
         findViewById<TextView>(R.id.rowSyncSpeedSub).text = prefs.syncMode.label
+        findViewById<TextView>(R.id.rowDeviceNameSub).text = prefs.deviceLabel
         val allowed = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         findViewById<TextView>(R.id.rowBatterySub).text =
             if (allowed) "Allowed. Clips keep arriving" else "Not allowed yet. Tap to allow"
+    }
+
+    /** How this phone shows up on your other devices. Travels encrypted, inside each clip. */
+    private fun editDeviceName() {
+        val pad = Ui.dp(this, 22)
+        val input = EditText(this).apply {
+            setText(prefs.deviceName)
+            hint = prefs.defaultDeviceLabel
+            setSingleLine()
+            filters = arrayOf(InputFilter.LengthFilter(Names.MAX_DEVICE_NAME))
+            setSelection(text.length)
+        }
+        val box = FrameLayout(this).apply { setPadding(pad, Ui.dp(this@SettingsActivity, 8), pad, 0); addView(input) }
+        AlertDialog.Builder(this).setTitle("Device name")
+            .setMessage("Your other devices show it next to everything sent from this phone. Leave it empty to use the model name.")
+            .setView(box)
+            .setPositiveButton("Save") { _, _ ->
+                prefs.deviceName = input.text.toString()
+                findViewById<TextView>(R.id.rowDeviceNameSub).text = prefs.deviceLabel
+                DebugLog.add("Device name changed")
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun pickSyncSpeed() {

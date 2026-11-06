@@ -24,6 +24,7 @@ object DebugLog {
     fun dump(prefs: Prefs): String {
         val header = listOf(
             "ClipBridge debug log",
+            "App ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT}), ${Build.MANUFACTURER} ${Build.MODEL}",
             "Sync mode: ${prefs.syncMode.id}, background sync: ${if (prefs.syncEnabled) "on" else "off"}",
             "----------",
