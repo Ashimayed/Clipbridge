@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "ClipBridge"
-include(":app")
+include(":app", ":core")

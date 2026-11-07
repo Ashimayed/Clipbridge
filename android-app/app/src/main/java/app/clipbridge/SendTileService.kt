@@ -20,7 +20,9 @@ class SendTileService : TileService() {
             )
             startActivityAndCollapse(pi)
         } else {
+            // The PendingIntent version only exists from Android 14; this is the one older versions have.
             @Suppress("DEPRECATION")
+            @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
             startActivityAndCollapse(intent)
         }
     }

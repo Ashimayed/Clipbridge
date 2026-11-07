@@ -38,8 +38,8 @@ button { cursor: pointer; }
 .tick { width: 52px; height: 52px; border-radius: 50%; background: var(--tint); color: var(--accent); display: grid; place-items: center; }
 
 label { font-size: 13px; font-weight: 600; margin-bottom: -8px; }
-input[type=password] { width: 100%; height: 44px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); }
-input[type=password]:focus { outline: none; border-color: var(--accent); }
+input[type=password], input[type=text]#nameInput { width: 100%; height: 44px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); }
+input[type=password]:focus, input[type=text]#nameInput:focus { outline: none; border-color: var(--accent); }
 
 .btn { height: 44px; padding: 0 18px; border: 0; border-radius: 12px; font-weight: 600; font-size: 14.5px; }
 .btn:disabled { opacity: .55; cursor: default; }
@@ -85,7 +85,7 @@ input[type=password]:focus { outline: none; border-color: var(--accent); }
 .tile img { width: 100%; height: 100%; object-fit: cover; }
 .body { flex: 1; min-width: 0; }
 .clip-title { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.clip-meta { font-size: 12px; color: var(--ink2); }
+.clip-meta { font-size: 12px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act { flex-shrink: 0; color: var(--ink2); opacity: 0; display: grid; }
 .row:hover .act, .row:focus-visible .act, .row.done .act { opacity: 1; }
 .row.done .act { color: var(--ok); }
@@ -111,7 +111,7 @@ button.item.danger:hover { color: var(--danger); }
 .search input::placeholder { color: var(--ink2); }
 
 /* ---- clip rows: the row button plus a separate pin button beside it ---- */
-.clip-row { display: flex; align-items: center; gap: 2px; }
+.clip-row { display: flex; align-items: center; gap: 2px; padding-right: 8px; }
 .clip-row .row { flex: 1; min-width: 0; border-radius: 10px; }
 .pin-btn { color: var(--ink2); opacity: 0; }
 .clip-row:hover .pin-btn, .pin-btn:focus-visible, .pin-btn.pinned { opacity: 1; }
@@ -129,3 +129,30 @@ button.item.danger:hover { color: var(--danger); }
 #qrImg { width: 200px; height: 200px; border-radius: 12px; background: #fff; padding: 10px; box-sizing: border-box; }
 #qrCode { margin-top: -4px; }
 #qrCountdown { min-height: 1.2em; }
+
+/* ---- list sections: Pinned first, then Recent ---- */
+.section { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 16px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink2); }
+.section:first-child { padding-top: 6px; }
+.section small { font-weight: 500; font-size: 11.5px; }
+.tile.ext { font-size: 10.5px; letter-spacing: 0.02em; }
+
+/* ---- delete: appears on hover/focus, asks once more before deleting ---- */
+.del-btn { color: var(--ink2); opacity: 0; width: auto; min-width: 34px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.clip-row:hover .del-btn, .del-btn:focus-visible, .del-btn.armed { opacity: 1; }
+.del-btn:hover, .del-btn.armed { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.del-btn:disabled { opacity: .35 !important; }
+.clip-row.leaving { opacity: .4; pointer-events: none; transition: opacity .15s; }
+
+/* ---- files being sent ---- */
+.transfers { list-style: none; margin: 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.transfers:not(:empty) { margin-bottom: 10px; }
+.transfer { padding: 8px 12px 9px; border-radius: 12px; background: var(--tint); }
+.transfer .t-top { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
+.transfer .t-name { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transfer .t-pct { color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.transfer .t-bar { height: 4px; margin-top: 6px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 18%, transparent); overflow: hidden; }
+.transfer .t-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; transition: width .25s linear; }
+@media (prefers-reduced-motion: reduce) { .transfer .t-bar i, .clip-row.leaving { transition: none; } }
+
+.row-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ellipsis { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

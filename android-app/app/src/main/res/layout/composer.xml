@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Type text, or attach any files (photos, videos, documents...), and send them to your other devices. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/composerBlock" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+    <LinearLayout android:id="@+id/transferList" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:visibility="gone" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_composer"
+        android:gravity="bottom" android:minHeight="52dp" android:orientation="horizontal"
+        android:paddingStart="2dp" android:paddingTop="2dp" android:paddingEnd="4dp" android:paddingBottom="2dp">
+        <ImageButton android:id="@+id/btnAttach" style="@style/IconBtn" android:contentDescription="Send files or photos"
+            android:src="@drawable/ic_attach" android:tint="@color/ink2" android:tooltipText="Send files or photos" />
+        <EditText android:id="@+id/composerText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_gravity="center_vertical" android:background="@null" android:hint="Type something to send"
+            android:importantForAutofill="no" android:inputType="textMultiLine|textCapSentences" android:maxLines="5"
+            android:minHeight="48dp" android:paddingTop="12dp" android:paddingBottom="12dp" android:scrollbars="vertical"
+            android:textColor="@color/ink" android:textColorHint="@color/ink2" android:textSize="16sp" />
+        <ImageButton android:id="@+id/btnSendText" android:layout_width="44dp" android:layout_height="44dp" android:layout_margin="2dp"
+            android:background="@drawable/bg_send_round" android:contentDescription="Send this text" android:enabled="false"
+            android:scaleType="center" android:src="@drawable/ic_send" android:tint="@color/on_cobalt" />
+    </LinearLayout>
+</LinearLayout>

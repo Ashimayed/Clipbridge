@@ -66,8 +66,10 @@ class SetupActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Ui.edgeToEdge(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setup)
+        Ui.padForSystemBars(findViewById(R.id.setupRoot))
         Ui.constrainWidth(this, findViewById<LinearLayout>(R.id.column), 520)
         stepWelcome = findViewById(R.id.stepWelcome)
         stepPass = findViewById(R.id.stepPass)

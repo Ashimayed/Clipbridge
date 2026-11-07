@@ -71,19 +71,23 @@
   <a class="back" href="index.html">← ClipBridge</a>
   <div class="glass">
     <h1>ClipBridge Privacy Policy</h1>
-    <p class="updated">Last updated: 23 September 2026</p>
+    <p class="updated">Last updated: 6 November 2026 (version <!-- version -->2.2.0<!-- /version -->)</p>
 
     <p>ClipBridge is a free, open tool that syncs your clipboard between the ClipBridge Chrome extension and the ClipBridge Android app. This policy explains what data ClipBridge touches and what it does with it.</p>
 
     <h2>What ClipBridge accesses</h2>
     <ul>
-      <li><strong>Clipboard content you choose to sync</strong> – text you copy on one device so it can appear on your other device.</li>
+      <li><strong>Clipboard content you choose to sync</strong> – text and images you copy on one device so they can appear on your other devices.</li>
+      <li><strong>Text and files you choose to send</strong> – anything you type into ClipBridge, attach to it (photos, videos, documents or any other file), or share to it.</li>
+      <li><strong>A name for each device</strong> – optional, set by you (for example "Work laptop"), shown next to what each device sends. Like your clips, it travels encrypted.</li>
       <li><strong>Google Drive app data folder</strong> – ClipBridge requests only the <code>drive.appdata</code> scope. This gives it access to a hidden folder in <em>your own</em> Google Drive that only ClipBridge can see. It cannot read, list, or change any of your other Drive files.</li>
       <li><strong>Your Google account sign-in</strong> – used only to get permission to use that app data folder.</li>
     </ul>
 
     <h2>Where your data goes</h2>
-    <p>Clipboard data is stored only in your own Google Drive app data folder and on your own devices. ClipBridge has <strong>no server</strong>. The developer never receives, sees, stores, or shares your clipboard content, your account details, or any other personal data.</p>
+    <p>Clipboard data and files are stored only in your own Google Drive app data folder and on your own devices. ClipBridge has <strong>no server</strong>. The developer never receives, sees, stores, or shares your clipboard content, your files, your account details, or any other personal data.</p>
+    <p>Everything is end-to-end encrypted on your device with a key made from a passphrase only you know, before it is uploaded. Google Drive only ever holds scrambled data: not your clips, not your file names, not your device names. Drive does see each item's size, when it was created, whether it is pinned, and a random ID for the device that sent it.</p>
+    <p>To show your history quickly, each device keeps small, private previews of image clips and the most recent items you received. These stay inside the app's own storage on that device (they are never backed up), and are deleted when the clip is deleted, when you change your passphrase, or when you sign out.</p>
 
     <h2>What ClipBridge does not do</h2>
     <ul>
@@ -94,7 +98,7 @@
     <p>ClipBridge's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
     <h2>Deleting your data</h2>
-    <p>You can remove ClipBridge's access and data at any time:</p>
+    <p>Delete a single clip from every device by swiping it away in the Android app or using its delete button in Chrome; <em>Settings → Delete all clips</em> removes everything. You can also remove ClipBridge's access and data at any time:</p>
     <ol>
       <li>Go to <a href="https://myaccount.google.com/permissions">Google Account → Third-party apps &amp; services</a>, select ClipBridge, and remove access.</li>
       <li>To delete the stored app data, open <a href="https://drive.google.com/drive/settings">Google Drive → Settings → Manage apps</a>, find ClipBridge, and choose <em>Delete hidden app data</em>.</li>

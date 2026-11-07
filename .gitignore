@@ -8,3 +8,7 @@ local.properties
 keystore.properties
 *.keystore
 *.jks
+*.p12
+*.pem
+.env
+dist/

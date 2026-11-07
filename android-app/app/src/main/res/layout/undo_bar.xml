@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Clip deleted · Undo": a swiped clip waits a few seconds before it is really deleted. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/undoBar" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:layout_gravity="bottom" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"
+    android:background="@drawable/bg_undo" android:elevation="6dp" android:gravity="center_vertical" android:minHeight="52dp"
+    android:paddingStart="18dp" android:paddingEnd="6dp" android:visibility="gone"
+    android:accessibilityLiveRegion="polite">
+    <TextView android:id="@+id/undoText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:textColor="@color/ground" android:textSize="15sp" />
+    <Button android:id="@+id/undoBtn" style="@android:style/Widget.Material.Button.Borderless" android:layout_width="wrap_content"
+        android:layout_height="48dp" android:text="Undo" android:textAllCaps="false" android:textColor="@color/undo_action"
+        android:textFontWeight="700" android:textSize="15sp" />
+</LinearLayout>

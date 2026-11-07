@@ -11,4 +11,6 @@
     <color name="live">#5CCB98</color>
     <color name="danger">#FF8A7A</color>
     <color name="pressed">#1FFFFFFF</color>
+    <color name="undo_action">#2743C7</color>
+    <color name="swipe_delete">#B3261E</color>
 </resources>

@@ -94,7 +94,8 @@ open class CaptureActivity : ComponentActivity() {
     private fun sendText(text: String) {
         toast("Sending…")
         val ca = this.app
-        ca.scope.launch { report(ca, runCatching { ca.repo.sendText(text) }) }
+        val force = isShareEntry // shared on purpose: send it even if it matches the last clip
+        ca.scope.launch { report(ca, runCatching { ca.repo.sendText(text, force) }) }
         finish()
     }
 
@@ -102,14 +103,14 @@ open class CaptureActivity : ComponentActivity() {
     private fun sendUris(uris: List<Uri>) {
         toast(if (uris.size == 1) "Sending…" else "Sending ${uris.size} items…")
         val ca = this.app
+        val force = isShareEntry
         lifecycleScope.launch {
-            val staged = uris.mapNotNull { u -> runCatching { ca.repo.stage(u) }.getOrNull() }
+            // Only a clipboard capture needs a fingerprint (to skip re-sending the same thing).
+            val staged = uris.mapNotNull { u -> runCatching { ca.repo.stage(u, hash = !force) }.getOrNull() }
             if (staged.isEmpty()) {
                 toast("Couldn't read that item")
             } else {
-                ca.scope.launch {
-                    for (s in staged) report(ca, runCatching { ca.repo.sendStaged(s) })
-                }
+                ca.scope.launch { sendAll(ca, staged, force) }
             }
             finish()
         }
@@ -118,6 +119,14 @@ open class CaptureActivity : ComponentActivity() {
     private fun toast(msg: String) = Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
 
     companion object {
+        /** Sends staged files one by one, then reports once (not a toast per file). */
+        suspend fun sendAll(app: ClipApp, staged: List<Staged>, force: Boolean) {
+            if (staged.size == 1) { report(app, runCatching { app.repo.sendStaged(staged[0], force) }); return }
+            var failure: Throwable? = null
+            for (s in staged) runCatching { app.repo.sendStaged(s, force) }.onFailure { if (failure == null) failure = it }
+            report(app, failure?.let { Result.failure(it) } ?: Result.success(SendResult.SENT))
+        }
+
         suspend fun report(app: ClipApp, r: Result<SendResult>) = withContext(Dispatchers.Main) {
             val msg = r.fold(
                 onSuccess = { if (it == SendResult.SENT) "Sent to your other devices" else "Already on your other devices" },

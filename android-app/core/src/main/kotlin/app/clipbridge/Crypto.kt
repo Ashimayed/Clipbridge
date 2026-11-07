@@ -21,7 +21,9 @@ class DecryptException(msg: String) : GeneralSecurityException(msg)
 data class ClipHeader(val name: String, val mime: String, val kind: String, val device: String, val size: Long)
 
 /**
- * End-to-end encryption, format "CB1". MUST stay byte-identical to chrome-extension/crypto.js.
+ * End-to-end encryption, format "CB1". MUST stay byte-identical to chrome-extension/crypto.js:
+ * both are checked against the same protocol/test-vectors.json (CoreParityTest here,
+ * tests/parity.test.mjs for Chrome), so a difference fails the build.
  *
  *  key     = PBKDF2-HMAC-SHA256(passphrase, SHA-256("ClipBridge/v1/salt/" + email), 310 000, 32 bytes)
  *  prefix  = 8 random bytes per clip
@@ -43,14 +45,24 @@ object Crypto {
     // ------------------------------------------------------------------ keys
 
     fun salt(email: String): ByteArray =
-        sha256(("ClipBridge/v1/salt/" + email.trim().lowercase()).toByteArray(Charsets.UTF_8))
+        sha256(("ClipBridge/v1/salt/" + normalizeEmail(email)).toByteArray(Charsets.UTF_8))
 
-    /** Plain PBKDF2 over UTF-8 bytes, so it matches WebCrypto exactly on every Android version. */
-    fun deriveKey(passphrase: String, email: String, iterations: Int = ITERATIONS): ByteArray {
+    /** Same as JavaScript's email.trim().toLowerCase(). */
+    fun normalizeEmail(email: String): String = Names.jsTrim(email).lowercase()
+
+    fun deriveKey(passphrase: String, email: String, iterations: Int = ITERATIONS): ByteArray =
+        pbkdf2Sha256(passphrase.toByteArray(Charsets.UTF_8), salt(email), iterations)
+
+    /**
+     * PBKDF2-HMAC-SHA256, first 32-byte block only. Written out by hand (rather than
+     * SecretKeyFactory) so it hashes the passphrase's UTF-8 bytes exactly like WebCrypto does on
+     * every Android version. Checked against the RFC 7914 test vector in CoreParityTest.
+     */
+    fun pbkdf2Sha256(password: ByteArray, salt: ByteArray, iterations: Int): ByteArray {
+        require(iterations >= 1) { "iterations must be at least 1" }
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(passphrase.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        val s = salt(email)
-        mac.update(s)
+        mac.init(SecretKeySpec(password, "HmacSHA256"))
+        mac.update(salt)
         mac.update(byteArrayOf(0, 0, 0, 1))
         var u = mac.doFinal()
         val out = u.copyOf()
@@ -78,8 +90,9 @@ object Crypto {
     // ------------------------------------------------------------------ header
 
     fun sealHeader(key: ByteArray, prefix: ByteArray, h: ClipHeader): String {
-        val json = JSONObject().put("n", h.name).put("m", h.mime).put("k", h.kind)
-            .put("d", h.device).put("s", h.size).toString().toByteArray(Charsets.UTF_8)
+        // Hand-written JSON: byte-for-byte what crypto.js's JSON.stringify() produces.
+        val json = Json.obj("n" to h.name, "m" to h.mime, "k" to h.kind, "d" to h.device, "s" to h.size)
+            .toByteArray(Charsets.UTF_8)
         val ct = gcm(Cipher.ENCRYPT_MODE, key, prefix + byteArrayOf(-1, -1, -1, -1), HEADER_AAD, json)
         return Base64.getEncoder().encodeToString(prefix + ct)
     }
@@ -119,6 +132,39 @@ object Crypto {
             out.write(gcm(Cipher.ENCRYPT_MODE, key, iv(prefix, i), chunkAad(i, last), buf, n))
         }
         if (input.read() != -1) throw IOException("File changed while sending")
+    }
+
+    /**
+     * Writes the ciphertext of a [plainSize]-byte file from ciphertext byte [cipherOffset] on,
+     * byte-identical to the tail of [encrypt]'s output. Lets an interrupted upload resume where
+     * Drive stopped instead of resending everything. [openAt] returns the plaintext positioned at
+     * the given byte offset (always the start of a 256 KiB chunk).
+     */
+    fun encryptFrom(
+        key: ByteArray, prefix: ByteArray, plainSize: Long, cipherOffset: Long,
+        openAt: (plainOffset: Long) -> InputStream, out: OutputStream,
+    ) {
+        val total = cipherLength(plainSize)
+        require(cipherOffset in 0..total) { "offset outside the ciphertext" }
+        val head = MAGIC + prefix
+        if (cipherOffset < head.size) out.write(head, cipherOffset.toInt(), head.size - cipherOffset.toInt())
+        val chunks = if (plainSize == 0L) 1L else (plainSize + CHUNK - 1) / CHUNK
+        val past = maxOf(0L, cipherOffset - head.size)
+        val first = past / (CHUNK + TAG)
+        if (first >= chunks) return
+        var skip = (past % (CHUNK + TAG)).toInt()
+        val buf = ByteArray(CHUNK)
+        openAt(first * CHUNK).use { input ->
+            var remaining = plainSize - first * CHUNK
+            for (i in first until chunks) {
+                val n = minOf(CHUNK.toLong(), remaining).toInt()
+                readFully(input, buf, n)
+                remaining -= n
+                val ct = gcm(Cipher.ENCRYPT_MODE, key, iv(prefix, i), chunkAad(i, i == chunks - 1), buf, n)
+                out.write(ct, skip, ct.size - skip)
+                skip = 0
+            }
+        }
     }
 
     fun decrypt(key: ByteArray, expectedPrefix: ByteArray, input: InputStream, out: OutputStream) {

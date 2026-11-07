@@ -26,12 +26,14 @@ object Pairing {
     fun build(key: ByteArray, email: String): String {
         require(key.size == 32) { "key must be 32 bytes" }
         val k = Base64.getUrlEncoder().withoutPadding().encodeToString(key)
-        val e = URLEncoder.encode(email.trim().lowercase(), "UTF-8").replace("*", "%2A") // same escaping as logic.js
+        // URLEncoder leaves * alone and writes a space as "+"; logic.js escapes both. Any "+" in
+        // URLEncoder's output is a space (a real "+" becomes %2B), so the swap is exact.
+        val e = URLEncoder.encode(Crypto.normalizeEmail(email), "UTF-8").replace("*", "%2A").replace("+", "%20")
         return "${PREFIX}v=1&k=$k&c=${Crypto.keyCheck(key)}&e=$e"
     }
 
     fun parse(raw: String?): PairingResult {
-        val s = raw?.trim().orEmpty()
+        val s = Names.jsTrim(raw.orEmpty())
         if (s.isEmpty() || s.length > MAX_LEN) return PairingResult.Bad("That isn't a ClipBridge pairing code.")
         if (!s.startsWith(PREFIX)) return PairingResult.Bad("That isn't a ClipBridge pairing code.")
         val params = HashMap<String, String>()
@@ -39,7 +41,8 @@ object Pairing {
             val i = part.indexOf('=')
             if (i <= 0) return PairingResult.Bad("The pairing code is damaged.")
             val name = part.substring(0, i)
-            val value = try { URLDecoder.decode(part.substring(i + 1), "UTF-8") } catch (e: IllegalArgumentException) {
+            // decodeURIComponent keeps a literal "+"; URLDecoder would turn it into a space.
+            val value = try { URLDecoder.decode(part.substring(i + 1).replace("+", "%2B"), "UTF-8") } catch (e: IllegalArgumentException) {
                 return PairingResult.Bad("The pairing code is damaged.")
             }
             if (params.put(name, value) != null) return PairingResult.Bad("The pairing code is damaged.")
@@ -51,7 +54,7 @@ object Pairing {
         if (key.size != 32) return PairingResult.Bad("The pairing code is damaged.")
         val check = params["c"].orEmpty().uppercase()
         if (check != Crypto.keyCheck(key)) return PairingResult.Bad("The pairing code is damaged. Try scanning again.")
-        val email = params["e"].orEmpty().trim().lowercase()
+        val email = Crypto.normalizeEmail(params["e"].orEmpty())
         if (!email.contains('@') || email.length !in 3..254) return PairingResult.Bad("The pairing code is damaged.")
         return PairingResult.Ok(key, check, email)
     }

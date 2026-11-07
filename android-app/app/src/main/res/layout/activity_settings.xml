@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/ground">
+    android:id="@+id/settingsRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/ground">
     <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
         <LinearLayout android:id="@+id/column" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal" android:orientation="vertical"
@@ -27,6 +27,18 @@
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                         <TextView android:id="@+id/rowChangePassTitle" style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Change passphrase" android:textColor="@color/ink" />
                         <TextView android:id="@+id/rowChangePassSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" android:visibility="gone" />
+                    </LinearLayout>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Group" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="8dp" android:paddingStart="4dp" android:text="This phone" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_group" android:orientation="vertical" android:clipToOutline="true">
+                <LinearLayout android:id="@+id/rowDeviceName" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground" android:gravity="center_vertical" android:minHeight="56dp"
+                    android:paddingStart="16dp" android:paddingTop="10dp" android:paddingEnd="12dp" android:paddingBottom="10dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView style="@style/T.Row" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Device name" android:textColor="@color/ink" />
+                        <TextView android:id="@+id/rowDeviceNameSub" style="@style/T.Meta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:ellipsize="end" android:singleLine="true" />
                     </LinearLayout>
                     <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_chevron" android:tint="@color/ink2" />
                 </LinearLayout>
@@ -115,6 +127,8 @@
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
+            <TextView android:id="@+id/versionText" style="@style/T.Meta" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="18dp" android:gravity="center" />
         </LinearLayout>
     </FrameLayout>
 </ScrollView>
